@@ -11,7 +11,7 @@ const createTaskSchema = z.object({
   status: z.enum(taskStatuses).default("backlog"),
   priority: z.enum(taskPriorities).default("medium"),
   assignee: z.enum(taskAssignees).default("agency"),
-  dueDate: z.string().nullish(),
+  dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Must be YYYY-MM-DD").nullish(),
 });
 
 export async function GET() {

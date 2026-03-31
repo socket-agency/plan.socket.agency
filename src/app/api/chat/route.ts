@@ -20,6 +20,9 @@ export async function POST(request: Request) {
   let messages: UIMessage[];
   try {
     const body = await request.json();
+    if (!Array.isArray(body?.messages) || body.messages.length === 0) {
+      return new Response("messages array is required", { status: 400 });
+    }
     messages = body.messages;
   } catch {
     return new Response("Invalid request body", { status: 400 });

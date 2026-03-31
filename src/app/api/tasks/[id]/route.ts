@@ -12,7 +12,7 @@ const updateTaskSchema = z.object({
   priority: z.enum(taskPriorities).optional(),
   assignee: z.enum(taskAssignees).optional(),
   position: z.number().int().optional(),
-  dueDate: z.string().nullish(),
+  dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Must be YYYY-MM-DD").nullish(),
 });
 
 export async function GET(

@@ -47,7 +47,7 @@ export function Column({
             {tasks.length}
           </span>
         </div>
-        {onAddTask && (
+        {onAddTask && (isOwner || status === "backlog") && (
           <Button
             variant="ghost"
             size="icon"

@@ -1,13 +1,24 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/db";
-import { comments, users } from "@/db/schema";
+import { comments, tasks, users } from "@/db/schema";
 import { eq, asc } from "drizzle-orm";
 import { requireAuth } from "@/lib/api-auth";
 
 const createCommentSchema = z.object({
   body: z.string().min(1).max(5000),
 });
+
+async function validateTaskId(id: string) {
+  if (!z.string().uuid().safeParse(id).success) {
+    return { error: NextResponse.json({ error: "Invalid task ID" }, { status: 400 }) };
+  }
+  const [task] = await db.select({ id: tasks.id }).from(tasks).where(eq(tasks.id, id)).limit(1);
+  if (!task) {
+    return { error: NextResponse.json({ error: "Task not found" }, { status: 404 }) };
+  }
+  return { error: null };
+}
 
 export async function GET(
   _request: Request,
@@ -17,6 +28,8 @@ export async function GET(
   if (error) return error;
 
   const { id } = await params;
+  const taskCheck = await validateTaskId(id);
+  if (taskCheck.error) return taskCheck.error;
 
   const taskComments = await db
     .select({
@@ -43,6 +56,8 @@ export async function POST(
   if (error) return error;
 
   const { id } = await params;
+  const taskCheck = await validateTaskId(id);
+  if (taskCheck.error) return taskCheck.error;
 
   let body: unknown;
   try {

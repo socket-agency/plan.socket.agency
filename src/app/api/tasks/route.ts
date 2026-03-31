@@ -1,8 +1,18 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { db } from "@/db";
-import { tasks } from "@/db/schema";
+import { tasks, taskStatuses, taskPriorities, taskAssignees } from "@/db/schema";
 import { asc } from "drizzle-orm";
 import { requireAuth, requireOwner } from "@/lib/api-auth";
+
+const createTaskSchema = z.object({
+  title: z.string().min(1).max(500),
+  description: z.string().max(10000).nullish(),
+  status: z.enum(taskStatuses).default("backlog"),
+  priority: z.enum(taskPriorities).default("medium"),
+  assignee: z.enum(taskAssignees).default("agency"),
+  dueDate: z.string().nullish(),
+});
 
 export async function GET() {
   const { error } = await requireAuth();
@@ -17,31 +27,41 @@ export async function POST(request: Request) {
   const { session, error } = await requireOwner();
   if (error) return error;
 
-  const body = await request.json();
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
 
-  const maxPositionResult = await db
+  const parsed = createTaskSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "Invalid task data", details: parsed.error.flatten() },
+      { status: 400 }
+    );
+  }
+
+  const { title, description, status, priority, assignee, dueDate } = parsed.data;
+
+  const allTasks = await db
     .select({ position: tasks.position })
-    .from(tasks)
-    .orderBy(asc(tasks.position));
-
-  const sameStatusTasks = maxPositionResult.filter(
-    (t) => t.position !== undefined
-  );
+    .from(tasks);
   const maxPosition =
-    sameStatusTasks.length > 0
-      ? Math.max(...sameStatusTasks.map((t) => t.position))
+    allTasks.length > 0
+      ? Math.max(...allTasks.map((t) => t.position))
       : 0;
 
   const [task] = await db
     .insert(tasks)
     .values({
-      title: body.title,
-      description: body.description || null,
-      status: body.status || "backlog",
-      priority: body.priority || "medium",
-      assignee: body.assignee || "agency",
+      title,
+      description: description || null,
+      status,
+      priority,
+      assignee,
       position: maxPosition + 1000,
-      dueDate: body.dueDate || null,
+      dueDate: dueDate || null,
       createdBy: session.userId,
     })
     .returning();

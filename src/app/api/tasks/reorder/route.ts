@@ -1,34 +1,45 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { db } from "@/db";
-import { tasks } from "@/db/schema";
+import { tasks, taskStatuses } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { requireOwner } from "@/lib/api-auth";
 
-interface ReorderItem {
-  id: string;
-  status: string;
-  position: number;
-}
+const reorderSchema = z.object({
+  items: z.array(
+    z.object({
+      id: z.string().uuid(),
+      status: z.enum(taskStatuses),
+      position: z.number().int().nonnegative(),
+    })
+  ),
+});
 
 export async function PATCH(request: Request) {
   const { error } = await requireOwner();
   if (error) return error;
 
-  const { items }: { items: ReorderItem[] } = await request.json();
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
 
-  if (!Array.isArray(items)) {
+  const parsed = reorderSchema.safeParse(body);
+  if (!parsed.success) {
     return NextResponse.json(
-      { error: "items array is required" },
+      { error: "Invalid reorder data", details: parsed.error.flatten() },
       { status: 400 }
     );
   }
 
   await Promise.all(
-    items.map((item) =>
+    parsed.data.items.map((item) =>
       db
         .update(tasks)
         .set({
-          status: item.status as typeof tasks.$inferSelect.status,
+          status: item.status,
           position: item.position,
         })
         .where(eq(tasks.id, item.id))

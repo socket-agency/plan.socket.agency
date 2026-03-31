@@ -2,9 +2,10 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { jwtVerify } from "jose";
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || "dev-secret-change-in-production"
-);
+if (!process.env.JWT_SECRET) {
+  throw new Error("JWT_SECRET environment variable is required");
+}
+const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET);
 
 const publicPaths = ["/login", "/api/auth/login"];
 
@@ -22,12 +23,8 @@ export async function proxy(request: NextRequest) {
   }
 
   try {
-    const { payload } = await jwtVerify(token, JWT_SECRET);
-
-    const response = NextResponse.next();
-    response.headers.set("x-user-id", payload.userId as string);
-    response.headers.set("x-user-role", payload.role as string);
-    return response;
+    await jwtVerify(token, JWT_SECRET);
+    return NextResponse.next();
   } catch {
     return NextResponse.redirect(new URL("/login", request.url));
   }

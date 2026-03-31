@@ -1,18 +1,32 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { verifyPassword, createSession } from "@/lib/auth";
 
-export async function POST(request: Request) {
-  const { email, password } = await request.json();
+const loginSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(1),
+});
 
-  if (!email || !password) {
+export async function POST(request: Request) {
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+
+  const parsed = loginSchema.safeParse(body);
+  if (!parsed.success) {
     return NextResponse.json(
       { error: "Email and password are required" },
       { status: 400 }
     );
   }
+
+  const { email, password } = parsed.data;
 
   const [user] = await db
     .select()

@@ -12,15 +12,20 @@ export async function POST(request: Request) {
     return new Response("Unauthorized", { status: 401 });
   }
 
-  const { messages } = (await request.json()) as { messages: UIMessage[] };
+  let messages: UIMessage[];
+  try {
+    const body = await request.json();
+    messages = body.messages;
+  } catch {
+    return new Response("Invalid request body", { status: 400 });
+  }
 
   const result = streamText({
     model: anthropic("claude-sonnet-4-20250514"),
     system: getSystemPrompt(session.role),
     messages: await convertToModelMessages(messages),
     tools: getTools(session.role, session.userId),
-    maxRetries: 3,
   });
 
-  return result.toTextStreamResponse();
+  return result.toUIMessageStreamResponse();
 }

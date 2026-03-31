@@ -50,7 +50,7 @@ export function TaskCard({ task, isDragDisabled, onClick }: TaskCardProps) {
       ref={setNodeRef}
       style={style}
       {...attributes}
-      {...listeners}
+      {...(isDragDisabled ? {} : listeners)}
       onClick={onClick}
       className={cn(
         "group cursor-pointer rounded-lg border border-border bg-surface-1 p-3 transition-all duration-150",

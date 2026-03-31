@@ -3,7 +3,7 @@ import { z } from "zod";
 import { db } from "@/db";
 import { tasks, taskStatuses, taskPriorities, taskAssignees } from "@/db/schema";
 import { asc } from "drizzle-orm";
-import { requireAuth, requireOwner } from "@/lib/api-auth";
+import { requireAuth } from "@/lib/api-auth";
 
 const createTaskSchema = z.object({
   title: z.string().min(1).max(500),
@@ -24,7 +24,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const { session, error } = await requireOwner();
+  const { session, error } = await requireAuth();
   if (error) return error;
 
   let body: unknown;
@@ -42,7 +42,9 @@ export async function POST(request: Request) {
     );
   }
 
-  const { title, description, status, priority, assignee, dueDate } = parsed.data;
+  const isClient = session.role === "client";
+  const { title, description, priority, assignee, dueDate } = parsed.data;
+  const status = isClient ? "backlog" as const : parsed.data.status;
 
   const allTasks = await db
     .select({ position: tasks.position })

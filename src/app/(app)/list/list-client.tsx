@@ -7,14 +7,15 @@ import { columns } from "@/components/task-table/columns";
 import { CreateTaskDialog } from "@/components/create-task-dialog";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
-import type { Task } from "@/db/schema";
+import type { Task, UserRole } from "@/db/schema";
 
 interface ListClientProps {
   tasks: Task[];
   isOwner: boolean;
+  userRole: UserRole;
 }
 
-export function ListClient({ tasks, isOwner }: ListClientProps) {
+export function ListClient({ tasks, isOwner, userRole }: ListClientProps) {
   const router = useRouter();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
@@ -26,16 +27,14 @@ export function ListClient({ tasks, isOwner }: ListClientProps) {
           <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
             {tasks.length} tasks
           </p>
-          {isOwner && (
-            <Button
-              onClick={() => setCreateDialogOpen(true)}
-              className="gap-2 bg-brand text-white hover:bg-brand/90"
-              size="sm"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              New Task
-            </Button>
-          )}
+          <Button
+            onClick={() => setCreateDialogOpen(true)}
+            className="gap-2 bg-brand text-white hover:bg-brand/90"
+            size="sm"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            New Task
+          </Button>
         </div>
       </div>
 
@@ -47,12 +46,11 @@ export function ListClient({ tasks, isOwner }: ListClientProps) {
         />
       </div>
 
-      {isOwner && (
-        <CreateTaskDialog
-          open={createDialogOpen}
-          onOpenChange={setCreateDialogOpen}
-        />
-      )}
+      <CreateTaskDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+        userRole={userRole}
+      />
     </div>
   );
 }

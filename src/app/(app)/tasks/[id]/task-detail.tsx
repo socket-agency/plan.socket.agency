@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ArrowLeft, Trash2 } from "lucide-react";
+import { Comments } from "@/components/comments";
 import {
   taskStatuses,
   taskPriorities,
@@ -230,6 +231,10 @@ export function TaskDetail({ task, isOwner }: TaskDetailProps) {
           </p>
         </div>
       )}
+
+      <div className="mt-8 border-t border-border pt-6">
+        <Comments taskId={task.id} />
+      </div>
     </div>
   );
 }

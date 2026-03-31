@@ -257,7 +257,52 @@ function writeTools(userId: string) {
   };
 }
 
+function clientCreateTool(userId: string) {
+  return {
+    createTask: tool({
+      description: "Create a new task. It will go to the Backlog column.",
+      inputSchema: z.object({
+        title: z.string().describe("Task title"),
+        description: z
+          .string()
+          .optional()
+          .describe("Task description (markdown)"),
+        priority: z
+          .enum(["low", "medium", "high", "urgent"])
+          .default("medium"),
+        assignee: z.enum(["agency", "client"]).default("client"),
+        dueDate: z
+          .string()
+          .optional()
+          .describe("Due date in YYYY-MM-DD format"),
+      }),
+      execute: async (params) => {
+        const allTasks = await db.select().from(tasks);
+        const maxPos = Math.max(0, ...allTasks.map((t) => t.position));
+
+        const [task] = await db
+          .insert(tasks)
+          .values({
+            title: params.title,
+            description: params.description || null,
+            status: "backlog",
+            priority: params.priority as "medium",
+            assignee: params.assignee as "agency",
+            position: maxPos + 1000,
+            dueDate: params.dueDate || null,
+            createdBy: userId,
+          })
+          .returning();
+
+        return { created: { id: task.id, title: task.title, status: "backlog" } };
+      },
+    }),
+  };
+}
+
 export function getTools(role: UserRole, userId: string) {
-  if (role !== "owner") return readTools();
+  if (role === "client") {
+    return { ...readTools(), ...clientCreateTool(userId) };
+  }
   return { ...readTools(), ...writeTools(userId) };
 }

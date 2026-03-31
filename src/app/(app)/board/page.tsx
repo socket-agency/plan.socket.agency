@@ -11,5 +11,5 @@ export default async function BoardPage() {
 
   const allTasks = await db.select().from(tasks).orderBy(asc(tasks.position));
 
-  return <BoardClient tasks={allTasks} isOwner={user.role === "owner"} />;
+  return <BoardClient tasks={allTasks} isOwner={user.role === "owner"} userRole={user.role} />;
 }

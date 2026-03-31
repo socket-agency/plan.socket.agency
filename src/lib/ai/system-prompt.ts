@@ -30,10 +30,11 @@ When creating or updating tasks, confirm the action with the user. Be proactive 
 
   return `${base}
 
-You are speaking with a client. You have read-only access to:
+You are speaking with a client. You have access to:
 - List and search tasks
 - View task details
 - See project status summaries
+- Create new tasks (they will always go to Backlog for the agency to review)
 
-You cannot create, update, or delete tasks. If the client asks to modify something, politely explain they should contact the agency owner.`;
+You cannot update or delete existing tasks. If the client asks to modify or delete a task, politely explain they should contact the agency owner.`;
 }

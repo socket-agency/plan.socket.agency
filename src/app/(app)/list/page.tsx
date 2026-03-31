@@ -11,5 +11,5 @@ export default async function ListPage() {
 
   const allTasks = await db.select().from(tasks).orderBy(asc(tasks.position));
 
-  return <ListClient tasks={allTasks} isOwner={user.role === "owner"} />;
+  return <ListClient tasks={allTasks} isOwner={user.role === "owner"} userRole={user.role} />;
 }

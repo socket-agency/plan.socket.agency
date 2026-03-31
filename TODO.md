@@ -20,7 +20,7 @@
 - [ ] Labels/tags system
 - [ ] Subtasks and checklists
 - [ ] File attachments (Vercel Blob or S3)
-- [ ] Comments on tasks (both owner and client)
+- [x] Comments on tasks (both owner and client)
 - [ ] Task activity log / audit trail
 - [ ] Assignee field expanded to support individual team members
 - [ ] Estimated hours and time tracking

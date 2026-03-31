@@ -47,7 +47,7 @@ export function Column({
             {tasks.length}
           </span>
         </div>
-        {isOwner && onAddTask && (
+        {onAddTask && (
           <Button
             variant="ghost"
             size="icon"

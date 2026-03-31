@@ -24,12 +24,14 @@ import {
   taskPriorities,
   taskAssignees,
   type TaskStatus,
+  type UserRole,
 } from "@/db/schema";
 
 interface CreateTaskDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   defaultStatus?: TaskStatus;
+  userRole: UserRole;
 }
 
 const statusLabels: Record<string, string> = {
@@ -44,9 +46,11 @@ export function CreateTaskDialog({
   open,
   onOpenChange,
   defaultStatus = "backlog",
+  userRole,
 }: CreateTaskDialogProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const isClient = userRole === "client";
 
   async function handleSubmit(formData: FormData) {
     setLoading(true);
@@ -57,7 +61,7 @@ export function CreateTaskDialog({
         body: JSON.stringify({
           title: formData.get("title"),
           description: formData.get("description") || null,
-          status: formData.get("status"),
+          status: isClient ? "backlog" : formData.get("status"),
           priority: formData.get("priority"),
           assignee: formData.get("assignee"),
           dueDate: formData.get("dueDate") || null,
@@ -100,22 +104,24 @@ export function CreateTaskDialog({
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <Select name="status" defaultValue={defaultStatus}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {taskStatuses.map((s) => (
-                    <SelectItem key={s} value={s}>
-                      {statusLabels[s] || s}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <div className={isClient ? "grid grid-cols-2 gap-3" : "grid grid-cols-3 gap-3"}>
+            {!isClient && (
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <Select name="status" defaultValue={defaultStatus}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {taskStatuses.map((s) => (
+                      <SelectItem key={s} value={s}>
+                        {statusLabels[s] || s}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label>Priority</Label>
@@ -135,7 +141,7 @@ export function CreateTaskDialog({
 
             <div className="space-y-2">
               <Label>Assignee</Label>
-              <Select name="assignee" defaultValue="agency">
+              <Select name="assignee" defaultValue={isClient ? "client" : "agency"}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>

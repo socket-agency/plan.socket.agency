@@ -1,5 +1,10 @@
 import { anthropic } from "@ai-sdk/anthropic";
-import { streamText, type UIMessage, convertToModelMessages } from "ai";
+import {
+  streamText,
+  type UIMessage,
+  convertToModelMessages,
+  stepCountIs,
+} from "ai";
 import { verifySession } from "@/lib/auth";
 import { getTools } from "@/lib/ai/tools";
 import { getSystemPrompt } from "@/lib/ai/system-prompt";
@@ -25,6 +30,7 @@ export async function POST(request: Request) {
     system: getSystemPrompt(session.role),
     messages: await convertToModelMessages(messages),
     tools: getTools(session.role, session.userId),
+    stopWhen: stepCountIs(5),
   });
 
   return result.toUIMessageStreamResponse();

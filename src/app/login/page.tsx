@@ -1,109 +1,80 @@
-"use client";
-
-import { useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { EmberLoginForm } from "../(app)/_components/login-form";
 
 export default function LoginPage() {
-  const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
-
-    try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        setError(data.error || "Login failed");
-        return;
-      }
-
-      router.push("/board");
-      router.refresh();
-    } catch {
-      setError("Something went wrong");
-    } finally {
-      setLoading(false);
-    }
-  }
-
   return (
-    <div className="relative flex min-h-screen items-center justify-center bg-surface-0">
-      {/* Radial glow behind card */}
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute left-1/2 top-1/2 h-[600px] w-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-brand/5 blur-[120px]" />
-      </div>
+    <div
+      className="flex min-h-screen"
+      style={
+        {
+          "--background": "#0A0A0C",
+          "--foreground": "#F7F7F8",
+          "--card": "#131316",
+          "--card-foreground": "#F7F7F8",
+          "--popover": "#1C1C21",
+          "--popover-foreground": "#F7F7F8",
+          "--primary": "#D4453A",
+          "--primary-foreground": "#FFFFFF",
+          "--secondary": "#1C1C21",
+          "--secondary-foreground": "#E0E0E0",
+          "--muted": "#1C1C21",
+          "--muted-foreground": "#9494A0",
+          "--accent": "#252529",
+          "--accent-foreground": "#F7F7F8",
+          "--border": "rgba(255,255,255,0.06)",
+          "--input": "rgba(255,255,255,0.08)",
+          "--ring": "#D4453A",
+          "--radius": "0.5rem",
+        } as React.CSSProperties
+      }
+    >
+      {/* Left decoration panel — 60% */}
+      <div className="relative hidden w-[60%] items-center justify-center overflow-hidden bg-[#0A0A0C] lg:flex">
+        {/* Gradient mesh */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "radial-gradient(ellipse at 30% 50%, rgba(212,69,58,0.15) 0%, transparent 60%), radial-gradient(ellipse at 70% 30%, rgba(240,168,104,0.1) 0%, transparent 50%), radial-gradient(ellipse at 50% 80%, rgba(212,69,58,0.08) 0%, transparent 40%)",
+          }}
+        />
+        <div className="bg-noise absolute inset-0" />
 
-      <div className="relative z-10 w-full max-w-sm px-4">
-        {/* Brand header */}
-        <div className="mb-8 text-center">
-          <h1 className="font-mono text-xs font-medium uppercase tracking-[0.3em] text-muted-foreground">
-            socket.agency
-          </h1>
-          <p className="mt-2 text-2xl font-semibold tracking-tight text-foreground">
-            Plan
+        {/* Center content */}
+        <div className="relative z-10 flex flex-col items-center gap-6 px-12">
+          <div className="text-5xl font-semibold tracking-tight text-[#F7F7F8]">
+            plan
+            <span
+              style={{
+                background: "linear-gradient(135deg, #D4453A, #F0A868)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+              }}
+            >
+              .
+            </span>
+            socket
+            <span
+              style={{
+                background: "linear-gradient(135deg, #D4453A, #F0A868)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+              }}
+            >
+              .
+            </span>
+            agency
+          </div>
+          <p className="max-w-md text-center text-sm leading-relaxed text-[#9494A0]">
+            Task management with clarity and purpose. Track progress, collaborate
+            with your team, and get things done.
           </p>
         </div>
+      </div>
 
-        {/* Login card */}
-        <div className="rounded-xl border border-border bg-surface-1 p-6 shadow-xl">
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Email
-              </Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="h-11 border-border bg-surface-0 text-foreground placeholder:text-muted-foreground/50 focus-visible:ring-brand/50"
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Password
-              </Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="h-11 border-border bg-surface-0 text-foreground focus-visible:ring-brand/50"
-                required
-              />
-            </div>
-            {error && (
-              <p className="text-sm font-medium text-brand">{error}</p>
-            )}
-            <Button
-              type="submit"
-              className="h-11 w-full bg-brand font-medium text-white transition-all hover:bg-brand/90 hover:shadow-[0_0_20px_rgba(201,42,42,0.3)]"
-              disabled={loading}
-            >
-              {loading ? "Signing in..." : "Sign in"}
-            </Button>
-          </form>
-        </div>
-
-        <p className="mt-6 text-center font-mono text-[10px] uppercase tracking-widest text-muted-foreground/50">
-          Powered by Socket Agency
-        </p>
+      {/* Right login panel — 40% */}
+      <div className="flex w-full items-center justify-center bg-[#131316] lg:w-[40%]">
+        <div className="bg-noise absolute inset-y-0 right-0 hidden w-[40%] lg:block" />
+        <EmberLoginForm />
       </div>
     </div>
   );

@@ -9,7 +9,7 @@ import { verifySession } from "@/lib/auth";
 import { getTools } from "@/lib/ai/tools";
 import { getSystemPrompt } from "@/lib/ai/system-prompt";
 
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 export async function POST(request: Request) {
   const session = await verifySession();
@@ -29,7 +29,7 @@ export async function POST(request: Request) {
   }
 
   const result = streamText({
-    model: anthropic("claude-sonnet-4-20250514"),
+    model: anthropic("claude-opus-4-6"),
     system: getSystemPrompt(session.role),
     messages: await convertToModelMessages(messages),
     tools: getTools(session.role, session.userId),

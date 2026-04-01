@@ -1,17 +1,35 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, ChevronDown, Shield, User } from "lucide-react";
+
+const roles = [
+  { value: "owner", label: "Agency Owner", icon: Shield },
+  { value: "client", label: "Client", icon: User },
+] as const;
 
 export function EmberLoginForm() {
   const router = useRouter();
   const { login } = useAuth();
+  const [role, setRole] = useState<"owner" | "client">("owner");
+  const [roleOpen, setRoleOpen] = useState(false);
+  const roleRef = useRef<HTMLDivElement>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (roleRef.current && !roleRef.current.contains(e.target as Node)) {
+        setRoleOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,6 +58,58 @@ export function EmberLoginForm() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-5">
+        {/* Role selector */}
+        <div className="space-y-2">
+          <label className="text-xs font-medium text-[#9494A0]">
+            I am
+          </label>
+          <div ref={roleRef} className="relative">
+            <button
+              type="button"
+              onClick={() => setRoleOpen(!roleOpen)}
+              className="flex w-full items-center justify-between rounded-lg border border-white/[0.06] bg-[#252529] px-4 py-3 text-sm text-[#F7F7F8] transition-colors hover:border-white/[0.1] focus:border-[#D4453A] focus:outline-none focus:ring-1 focus:ring-[#D4453A]/30"
+            >
+              <span className="flex items-center gap-2.5">
+                {(() => {
+                  const selected = roles.find((r) => r.value === role)!;
+                  return (
+                    <>
+                      <selected.icon size={16} className="text-[#9494A0]" />
+                      {selected.label}
+                    </>
+                  );
+                })()}
+              </span>
+              <ChevronDown
+                size={16}
+                className={`text-[#55555F] transition-transform ${roleOpen ? "rotate-180" : ""}`}
+              />
+            </button>
+            {roleOpen && (
+              <div className="absolute z-20 mt-1.5 w-full overflow-hidden rounded-lg border border-white/[0.06] bg-[#1C1C21] shadow-xl shadow-black/40">
+                {roles.map((r) => (
+                  <button
+                    key={r.value}
+                    type="button"
+                    onClick={() => {
+                      setRole(r.value);
+                      setRoleOpen(false);
+                    }}
+                    className={`flex w-full items-center gap-2.5 px-4 py-3 text-sm transition-colors ${
+                      role === r.value
+                        ? "bg-[rgba(212,69,58,0.08)] text-[#D4453A]"
+                        : "text-[#9494A0] hover:bg-white/[0.04] hover:text-[#F7F7F8]"
+                    }`}
+                  >
+                    <r.icon size={16} />
+                    {r.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
         <div className="space-y-2">
           <label className="text-xs font-medium text-[#9494A0]">
             Email address

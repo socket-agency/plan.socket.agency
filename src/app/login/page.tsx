@@ -65,15 +65,14 @@ export default function LoginPage() {
             agency
           </div>
           <p className="max-w-md text-center text-sm leading-relaxed text-[#9494A0]">
-            Task management with clarity and purpose. Track progress, collaborate
-            with your team, and get things done.
+            Task management for Socket Agency.
           </p>
         </div>
       </div>
 
       {/* Right login panel — 40% */}
-      <div className="flex w-full items-center justify-center bg-[#131316] lg:w-[40%]">
-        <div className="bg-noise absolute inset-y-0 right-0 hidden w-[40%] lg:block" />
+      <div className="relative flex w-full items-center justify-center bg-[#131316] lg:w-[40%]">
+        <div className="bg-noise absolute inset-0" />
         <EmberLoginForm />
       </div>
     </div>

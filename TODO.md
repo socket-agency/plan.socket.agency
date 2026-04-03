@@ -19,7 +19,7 @@
 ## Task Features
 - [ ] Labels/tags system
 - [ ] Subtasks and checklists
-- [ ] File attachments (Vercel Blob or S3)
+- [x] File attachments (Vercel Blob)
 - [x] Comments on tasks (both owner and client)
 - [ ] Task activity log / audit trail
 - [ ] Assignee field expanded to support individual team members
@@ -38,7 +38,7 @@
 - [ ] Customizable kanban columns (owner-defined statuses)
 
 ## AI Chat
-- [ ] Persist chat history in database
+- [x] Persist chat history in database
 - [ ] Client write permissions via AI chat (with owner approval workflow)
 - [ ] AI notifications — owner gets notified of client AI interactions
 - [ ] Conversation context: include recent activity, not just current tasks
@@ -55,7 +55,7 @@
 - [ ] Database connection pooling
 - [ ] API response caching (SWR / React Query)
 - [ ] Optimistic UI updates for drag-and-drop
-- [ ] Database indexes on frequently queried columns
+- [x] Database indexes on frequently queried columns
 - [ ] Error monitoring (Sentry)
 - [ ] Analytics (Vercel Analytics or PostHog)
 - [ ] Automated backups

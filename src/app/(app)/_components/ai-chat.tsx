@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, useCallback } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import {
@@ -11,15 +11,16 @@ import {
   ChevronLeft,
   Trash2,
   MessageSquare,
+  Maximize2,
+  Minimize2,
 } from "lucide-react";
 import { Markdown } from "@/components/ui/markdown";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from "@/components/ui/sheet";
+  Dialog,
+  DialogOverlay,
+  DialogPortal,
+} from "@/components/ui/dialog";
+import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import {
   useConversations,
   type ConversationSummary,
@@ -45,9 +46,15 @@ function formatRelativeTime(dateStr: string) {
 function ChatInner({
   chatId,
   initialMessages,
+  expanded,
+  onMessagesChange,
+  onStreamingChange,
 }: {
   chatId: string;
   initialMessages: UIMessage[];
+  expanded?: boolean;
+  onMessagesChange?: (messages: UIMessage[]) => void;
+  onStreamingChange?: (streaming: boolean) => void;
 }) {
   const { messages, sendMessage, status } = useChat({
     id: chatId,
@@ -56,6 +63,17 @@ function ChatInner({
   });
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Sync live messages back to parent so they survive container remounts
+  useEffect(() => {
+    onMessagesChange?.(messages);
+  }, [messages, onMessagesChange]);
+
+  // Report streaming status to parent (to disable expand toggle)
+  const isLoading = status === "streaming" || status === "submitted";
+  useEffect(() => {
+    onStreamingChange?.(isLoading);
+  }, [isLoading, onStreamingChange]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -71,8 +89,6 @@ function ChatInner({
     setInput("");
     await sendMessage({ text });
   };
-
-  const isLoading = status === "streaming" || status === "submitted";
 
   return (
     <>
@@ -106,7 +122,9 @@ function ChatInner({
               className={`flex ${isUser ? "justify-end" : "justify-start"}`}
             >
               <div
-                className={`max-w-[85%] rounded-xl px-3.5 py-2.5 text-sm leading-relaxed ${
+                className={`rounded-xl px-3.5 py-2.5 text-sm leading-relaxed ${
+                  expanded ? "max-w-[75%]" : "max-w-[85%]"
+                } ${
                   isUser
                     ? "bg-[#252529] text-[#F7F7F8]"
                     : "bg-[#1C1C21] text-[#9494A0]"
@@ -164,7 +182,7 @@ function ChatInner({
 
       {/* Input */}
       <div className="border-t border-white/[0.06] p-4">
-        <form onSubmit={handleSubmit} className="flex items-center gap-2">
+        <form onSubmit={handleSubmit} className={`flex items-center gap-2 ${expanded ? "mx-auto max-w-3xl" : ""}`}>
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -274,6 +292,142 @@ function ConversationList({
   );
 }
 
+/** Shared header content */
+function ChatHeader({
+  view,
+  expanded,
+  onBack,
+  onClose,
+  onToggleExpand,
+  disableExpand,
+}: {
+  view: "list" | "chat";
+  expanded: boolean;
+  onBack: () => void;
+  onClose: () => void;
+  onToggleExpand: () => void;
+  disableExpand?: boolean;
+}) {
+  return (
+    <div
+      className="flex items-center justify-between px-5 py-4"
+      style={{
+        background:
+          "linear-gradient(135deg, rgba(212,69,58,0.15), rgba(240,168,104,0.1))",
+      }}
+    >
+      <div className="flex items-center gap-2.5">
+        {view === "chat" && (
+          <button
+            onClick={onBack}
+            className="rounded-md p-1.5 text-[#9494A0] transition-colors hover:bg-white/[0.08] hover:text-[#F7F7F8]"
+          >
+            <ChevronLeft size={16} />
+          </button>
+        )}
+        <div
+          className="flex h-8 w-8 items-center justify-center rounded-lg"
+          style={{
+            background: "linear-gradient(135deg, #D4453A, #F0A868)",
+          }}
+        >
+          <Sparkles size={16} className="text-white" />
+        </div>
+        <div>
+          <h2 className="text-sm font-semibold text-[#F7F7F8]">
+            AI Assistant
+          </h2>
+          <p className="text-xs text-[#9494A0]">
+            {view === "list"
+              ? "Your conversations"
+              : "Ask about tasks, status, or anything"}
+          </p>
+        </div>
+      </div>
+      <div className="flex items-center gap-1">
+        <button
+          onClick={onToggleExpand}
+          disabled={disableExpand}
+          className="rounded-md p-1.5 text-[#9494A0] transition-colors hover:bg-white/[0.08] hover:text-[#F7F7F8] disabled:opacity-30 disabled:pointer-events-none"
+          title={expanded ? "Minimize" : "Expand"}
+        >
+          {expanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+        </button>
+        <button
+          onClick={onClose}
+          className="rounded-md p-1.5 text-[#9494A0] transition-colors hover:bg-white/[0.08] hover:text-[#F7F7F8]"
+        >
+          <X size={16} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** Shared body content */
+function ChatBody({
+  view,
+  expanded,
+  conversations,
+  loading,
+  loadingMessages,
+  activeId,
+  activeMessages,
+  onSelect,
+  onDelete,
+  onNewChat,
+  onMessagesChange,
+  onStreamingChange,
+}: {
+  view: "list" | "chat";
+  expanded: boolean;
+  conversations: ConversationSummary[];
+  loading: boolean;
+  loadingMessages: boolean;
+  activeId: string | null;
+  activeMessages: UIMessage[];
+  onSelect: (id: string) => void;
+  onDelete: (id: string) => void;
+  onNewChat: () => void;
+  onMessagesChange: (messages: UIMessage[]) => void;
+  onStreamingChange: (streaming: boolean) => void;
+}) {
+  if (view === "list") {
+    return (
+      <ConversationList
+        conversations={conversations}
+        loading={loading}
+        onSelect={onSelect}
+        onDelete={onDelete}
+        onNewChat={onNewChat}
+      />
+    );
+  }
+
+  if (loadingMessages) {
+    return (
+      <div className="flex flex-1 items-center justify-center">
+        <span className="text-sm text-[#55555F]">Loading messages...</span>
+      </div>
+    );
+  }
+
+  if (activeId) {
+    return (
+      <ChatInner
+        key={activeId}
+        chatId={activeId}
+        initialMessages={activeMessages}
+        expanded={expanded}
+        onMessagesChange={onMessagesChange}
+        onStreamingChange={onStreamingChange}
+      />
+    );
+  }
+
+  return null;
+}
+
 export function EmberAiChat({
   open,
   onClose,
@@ -294,23 +448,39 @@ export function EmberAiChat({
   } = useConversations();
 
   const [view, setView] = useState<"list" | "chat">("list");
+  const [expanded, setExpanded] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
+  // Live messages synced from ChatInner — survives container remounts
+  const liveMessagesRef = useRef<UIMessage[]>([]);
+  // Prevent auto-start effect from firing more than once
+  const hasAutoCreatedRef = useRef(false);
 
-  // When opening the sheet, refresh conversations and auto-start if none exist
+  // When opening, refresh conversations
   useEffect(() => {
     if (open) {
-      fetchConversations().then(() => {
-        // Will be handled by the next effect
-      });
+      hasAutoCreatedRef.current = false;
+      fetchConversations();
     }
   }, [open, fetchConversations]);
 
   // Auto-start a new chat when there are no conversations
   useEffect(() => {
-    if (!loading && conversations.length === 0 && view === "list") {
+    if (
+      !loading &&
+      conversations.length === 0 &&
+      view === "list" &&
+      !hasAutoCreatedRef.current
+    ) {
+      hasAutoCreatedRef.current = true;
       createNew();
       setView("chat");
     }
   }, [loading, conversations.length, view, createNew]);
+
+  // Reset live messages when switching conversations
+  useEffect(() => {
+    liveMessagesRef.current = activeMessages;
+  }, [activeId, activeMessages]);
 
   const handleSelectConversation = async (id: string) => {
     await loadMessages(id);
@@ -319,6 +489,7 @@ export function EmberAiChat({
 
   const handleNewChat = () => {
     createNew();
+    liveMessagesRef.current = [];
     setView("chat");
   };
 
@@ -328,84 +499,70 @@ export function EmberAiChat({
   };
 
   const handleDelete = async (id: string) => {
-    await deleteConversation(id);
+    try {
+      await deleteConversation(id);
+    } catch (error) {
+      console.error("Failed to delete conversation:", error);
+    }
+  };
+
+  const handleMessagesChange = useCallback((messages: UIMessage[]) => {
+    liveMessagesRef.current = messages;
+  }, []);
+
+  const handleStreamingChange = useCallback((streaming: boolean) => {
+    setIsStreaming(streaming);
+  }, []);
+
+  const headerProps = {
+    view,
+    expanded,
+    onBack: handleBackToList,
+    onClose,
+    onToggleExpand: () => setExpanded((e) => !e),
+    disableExpand: isStreaming,
+  };
+
+  // Use live messages (from ref) — they're always more up-to-date than
+  // activeMessages from DB, which may lag behind onFinish
+  const messagesForChat =
+    liveMessagesRef.current.length > 0
+      ? liveMessagesRef.current
+      : activeMessages;
+
+  const bodyProps = {
+    view,
+    expanded,
+    conversations,
+    loading,
+    loadingMessages,
+    activeId,
+    activeMessages: messagesForChat,
+    onSelect: handleSelectConversation,
+    onDelete: handleDelete,
+    onNewChat: handleNewChat,
+    onMessagesChange: handleMessagesChange,
+    onStreamingChange: handleStreamingChange,
   };
 
   return (
-    <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
-      <SheetContent
-        side="right"
-        showCloseButton={false}
-        className="flex w-[380px] flex-col border-l border-white/[0.06] bg-[#131316] p-0 sm:max-w-[380px]"
-      >
-        {/* Gradient header */}
-        <SheetHeader className="p-0">
-          <div
-            className="flex items-center justify-between px-5 py-4"
-            style={{
-              background:
-                "linear-gradient(135deg, rgba(212,69,58,0.15), rgba(240,168,104,0.1))",
-            }}
-          >
-            <div className="flex items-center gap-2.5">
-              {view === "chat" && (
-                <button
-                  onClick={handleBackToList}
-                  className="rounded-md p-1.5 text-[#9494A0] transition-colors hover:bg-white/[0.08] hover:text-[#F7F7F8]"
-                >
-                  <ChevronLeft size={16} />
-                </button>
-              )}
-              <div
-                className="flex h-8 w-8 items-center justify-center rounded-lg"
-                style={{
-                  background: "linear-gradient(135deg, #D4453A, #F0A868)",
-                }}
-              >
-                <Sparkles size={16} className="text-white" />
-              </div>
-              <div>
-                <SheetTitle className="text-sm font-semibold text-[#F7F7F8]">
-                  AI Assistant
-                </SheetTitle>
-                <SheetDescription className="text-xs text-[#9494A0]">
-                  {view === "list"
-                    ? "Your conversations"
-                    : "Ask about tasks, status, or anything"}
-                </SheetDescription>
-              </div>
-            </div>
-            <button
-              onClick={onClose}
-              className="rounded-md p-1.5 text-[#9494A0] transition-colors hover:bg-white/[0.08] hover:text-[#F7F7F8]"
-            >
-              <X size={16} />
-            </button>
-          </div>
-        </SheetHeader>
-
-        {view === "list" ? (
-          <ConversationList
-            conversations={conversations}
-            loading={loading}
-            onSelect={handleSelectConversation}
-            onDelete={handleDelete}
-            onNewChat={handleNewChat}
-          />
-        ) : loadingMessages ? (
-          <div className="flex flex-1 items-center justify-center">
-            <span className="text-sm text-[#55555F]">
-              Loading messages...
-            </span>
-          </div>
-        ) : activeId ? (
-          <ChatInner
-            key={activeId}
-            chatId={activeId}
-            initialMessages={activeMessages}
-          />
-        ) : null}
-      </SheetContent>
-    </Sheet>
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogPortal>
+        <DialogOverlay
+          className={expanded ? undefined : "bg-transparent backdrop-blur-none"}
+        />
+        <DialogPrimitive.Popup
+          aria-label="AI Assistant"
+          className={`fixed z-50 flex flex-col overflow-hidden bg-[#131316] shadow-2xl outline-none transition-all duration-300 ease-in-out ${
+            expanded
+              ? "inset-4 rounded-2xl border border-white/[0.06] sm:inset-8 md:inset-12"
+              : "inset-y-0 right-0 w-[380px] border-l border-white/[0.06]"
+          } data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0`}
+        >
+          <ChatHeader {...headerProps} />
+          <ChatBody {...bodyProps} />
+        </DialogPrimitive.Popup>
+      </DialogPortal>
+    </Dialog>
   );
 }

@@ -25,6 +25,9 @@ export async function POST(request: Request) {
   let messages: UIMessage[];
   try {
     const body = await request.json();
+    if (!body?.id || typeof body.id !== "string") {
+      return new Response("id is required", { status: 400 });
+    }
     if (!Array.isArray(body?.messages) || body.messages.length === 0) {
       return new Response("messages array is required", { status: 400 });
     }
@@ -36,7 +39,7 @@ export async function POST(request: Request) {
 
   // Upsert conversation
   let isNewConversation = false;
-  if (chatId) {
+  {
     const [existing] = await db
       .select({ id: conversations.id, userId: conversations.userId })
       .from(conversations)
@@ -96,8 +99,6 @@ export async function POST(request: Request) {
   return result.toUIMessageStreamResponse({
     originalMessages: messages,
     onFinish: async ({ responseMessage }) => {
-      if (!chatId) return;
-
       try {
         // Save the assistant's response message
         await db
@@ -123,9 +124,11 @@ export async function POST(request: Request) {
               .find((m) => m.role === "user")
               ?.parts.find((p) => p.type === "text")?.text ?? "";
 
-          generateConversationTitle(chatId, firstUserText).catch(
-            console.error,
-          );
+          if (firstUserText) {
+            generateConversationTitle(chatId, firstUserText).catch(
+              console.error,
+            );
+          }
         }
       } catch (error) {
         console.error("Failed to persist chat message:", error);

@@ -29,6 +29,13 @@
       "when": 1775223837332,
       "tag": "0003_brainy_master_mold",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1775240659448,
+      "tag": "0004_regular_sunfire",
+      "breakpoints": true
     }
   ]
 }

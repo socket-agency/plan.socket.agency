@@ -6,6 +6,7 @@ import {
   date,
   timestamp,
   jsonb,
+  index,
 } from "drizzle-orm/pg-core";
 
 export const userRoles = ["owner", "client"] as const;
@@ -110,17 +111,21 @@ export const conversations = pgTable("conversations", {
     .$onUpdate(() => new Date()),
 });
 
-export const chatMessages = pgTable("chat_messages", {
-  id: text("id").primaryKey(),
-  conversationId: text("conversation_id")
-    .notNull()
-    .references(() => conversations.id, { onDelete: "cascade" }),
-  role: text("role", { enum: messageRoles }).notNull(),
-  parts: jsonb("parts").notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-});
+export const chatMessages = pgTable(
+  "chat_messages",
+  {
+    id: text("id").primaryKey(),
+    conversationId: text("conversation_id")
+      .notNull()
+      .references(() => conversations.id, { onDelete: "cascade" }),
+    role: text("role", { enum: messageRoles }).notNull(),
+    parts: jsonb("parts").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [index("chat_messages_conversation_id_idx").on(table.conversationId)],
+);
 
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;

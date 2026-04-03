@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/db";
-import { tasks, taskStatuses, taskPriorities, taskAssignees } from "@/db/schema";
+import { tasks, attachments, taskStatuses, taskPriorities, taskAssignees } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { del } from "@vercel/blob";
 import { requireAuth, requireOwner } from "@/lib/api-auth";
 
 const updateTaskSchema = z.object({
@@ -93,6 +94,12 @@ export async function DELETE(
 
   const { id } = await params;
 
+  // Fetch attachment URLs before cascade delete removes them
+  const taskAttachments = await db
+    .select({ url: attachments.url })
+    .from(attachments)
+    .where(eq(attachments.taskId, id));
+
   const [task] = await db
     .delete(tasks)
     .where(eq(tasks.id, id))
@@ -100,6 +107,12 @@ export async function DELETE(
 
   if (!task) {
     return NextResponse.json({ error: "Task not found" }, { status: 404 });
+  }
+
+  // Clean up blob storage (best-effort, don't fail the request if this errors)
+  if (taskAttachments.length > 0) {
+    const urls = taskAttachments.map((a) => a.url);
+    await del(urls).catch(() => {});
   }
 
   return NextResponse.json({ success: true });

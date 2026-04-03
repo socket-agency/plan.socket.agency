@@ -2,6 +2,7 @@ export type {
   Task,
   Comment,
   User,
+  Attachment,
   TaskStatus,
   TaskPriority,
   TaskAssignee,

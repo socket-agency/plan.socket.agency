@@ -38,5 +38,9 @@ export function useAuth() {
     setUser(null);
   }, []);
 
-  return { user, loading, login, logout };
+  const updateUser = useCallback((updated: CurrentUser) => {
+    setUser(updated);
+  }, []);
+
+  return { user, loading, login, logout, updateUser };
 }

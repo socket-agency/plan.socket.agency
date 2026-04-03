@@ -16,6 +16,7 @@ Kanban board and task management tool with AI assistant. Two user roles: **owner
 ## Prerequisites
 
 - [Bun](https://bun.sh/) (v1.0+)
+- [just](https://github.com/casey/just) (`brew install just`)
 - A [Neon](https://neon.tech/) PostgreSQL database (or any Postgres with connection string)
 - An [Anthropic API key](https://console.anthropic.com/) (for the AI chat)
 - A [Vercel Blob](https://vercel.com/docs/storage/vercel-blob) store token (for file attachments)
@@ -85,6 +86,23 @@ Migrations need to run against your production database. Either:
 
 ## Commands
 
+Requires [just](https://github.com/casey/just) (`brew install just`). The justfile auto-loads `.env.local`.
+
+| Command | Description |
+|---------|-------------|
+| `just dev` | Start dev server |
+| `just build` | Production build |
+| `just lint` | Run ESLint |
+| `just db-generate` | Generate migrations from schema changes |
+| `just db-migrate` | Apply pending migrations |
+| `just db-seed` | Seed database with sample data |
+| `just db-studio` | Open Drizzle Studio (DB browser) |
+
+<details>
+<summary>Without <code>just</code></summary>
+
+You'll need to load `.env.local` yourself for DB commands.
+
 | Command | Description |
 |---------|-------------|
 | `bun dev` | Start dev server |
@@ -92,5 +110,7 @@ Migrations need to run against your production database. Either:
 | `bun run lint` | Run ESLint |
 | `bunx drizzle-kit generate` | Generate migrations from schema changes |
 | `bunx drizzle-kit migrate` | Apply pending migrations |
-| `bunx drizzle-kit studio` | Open Drizzle Studio (DB browser) |
 | `bun run src/db/seed.ts` | Seed database with sample data |
+| `bunx drizzle-kit studio` | Open Drizzle Studio (DB browser) |
+
+</details>

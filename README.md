@@ -6,8 +6,16 @@ Built for agencies and freelancers who need a simple, opinionated project board 
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/socket-agency/plan.socket.agency&env=DATABASE_URL,JWT_SECRET,ANTHROPIC_API_KEY,BLOB_READ_WRITE_TOKEN)
 
-<!-- Add a screenshot: save as docs/screenshot.png -->
-<!-- ![Board](docs/screenshot.png) -->
+![Board](docs/screenshots/screenshot.png)
+
+<details>
+<summary>Task detail & AI chat</summary>
+
+![Task detail](docs/screenshots/task-detail.png)
+
+![AI chat](docs/screenshots/ai-chat.png)
+
+</details>
 
 ## Features
 

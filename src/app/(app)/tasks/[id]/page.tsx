@@ -1,4 +1,4 @@
-import { redirect } from "next/navigation";
+import { EmberBoard } from "../../_components/board";
 
 export default async function TaskPage({
   params,
@@ -6,5 +6,5 @@ export default async function TaskPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  redirect(`/?task=${id}`);
+  return <EmberBoard initialTaskId={id} />;
 }

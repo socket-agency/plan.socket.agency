@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { useSearchParams } from "next/navigation";
 import {
   DndContext,
   DragOverlay,
@@ -22,12 +21,17 @@ import { EmberTaskDetailModal } from "./task-detail-modal";
 import { EmberAiChat } from "./ai-chat";
 import { Plus, Sparkles } from "lucide-react";
 
-export function EmberBoard() {
+export function EmberBoard({ initialTaskId }: { initialTaskId?: string }) {
   const { tasks, loading, reorder, fetchTasks, createTask } = useTasks();
-  const searchParams = useSearchParams();
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(
-    searchParams.get("task")
+    initialTaskId ?? null
   );
+  const openTask = useCallback((taskId: string | null) => {
+    setSelectedTaskId(taskId);
+    const url = taskId ? `/tasks/${taskId}` : "/";
+    window.history.pushState(null, "", url);
+  }, []);
+
   const [chatOpen, setChatOpen] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overColumnId, setOverColumnId] = useState<string | null>(null);
@@ -221,7 +225,7 @@ export function EmberBoard() {
                 key={status}
                 status={status}
                 tasks={columnTasks(status)}
-                onTaskClick={setSelectedTaskId}
+                onTaskClick={openTask}
                 isDropTarget={overColumnId === status}
               />
             ))}
@@ -245,7 +249,7 @@ export function EmberBoard() {
         <EmberTaskDetailModal
           taskId={selectedTaskId}
           open={!!selectedTaskId}
-          onClose={() => setSelectedTaskId(null)}
+          onClose={() => openTask(null)}
           onUpdate={fetchTasks}
         />
       )}

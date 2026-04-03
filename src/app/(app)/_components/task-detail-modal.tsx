@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Calendar, User, Flag, Layers, Trash2 } from "lucide-react";
+import { useState, useCallback } from "react";
+import { Calendar, User, Flag, Layers, Trash2, Link } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { useTask } from "@/hooks/use-task";
 import { useComments } from "@/hooks/use-comments";
+import { TaskAttachments } from "./task-attachments";
 import type { TaskStatus, TaskPriority, TaskAssignee } from "@/lib/types";
 import { taskStatuses, taskPriorities, taskAssignees } from "@/lib/types";
 
@@ -43,6 +44,14 @@ export function EmberTaskDetailModal({
   const { task, loading, updateTask, deleteTask } = useTask(taskId);
   const { comments, addComment } = useComments(taskId);
   const [newComment, setNewComment] = useState("");
+  const [linkCopied, setLinkCopied] = useState(false);
+
+  const handleCopyLink = useCallback(() => {
+    const url = `${window.location.origin}/tasks/${taskId}`;
+    navigator.clipboard.writeText(url);
+    setLinkCopied(true);
+    setTimeout(() => setLinkCopied(false), 2000);
+  }, [taskId]);
 
   const handleStatusChange = async (status: TaskStatus) => {
     await updateTask({ status });
@@ -88,17 +97,27 @@ export function EmberTaskDetailModal({
         ) : (
           <div className="flex flex-col">
             {/* Header */}
-            <DialogHeader className="border-b border-white/[0.06] p-6 pb-4">
+            <DialogHeader className="border-b border-white/[0.06] p-6 pr-12 pb-4">
               <DialogTitle className="text-xl font-semibold text-[#F7F7F8]">
                 {task.title}
               </DialogTitle>
-              <DialogDescription className="text-sm text-[#9494A0]">
-                Created {new Date(task.createdAt).toLocaleDateString("en", {
-                  month: "short",
-                  day: "numeric",
-                  year: "numeric",
-                })}
-              </DialogDescription>
+              <div className="flex items-center gap-3">
+                <DialogDescription className="text-sm text-[#9494A0]">
+                  Created {new Date(task.createdAt).toLocaleDateString("en", {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  })}
+                </DialogDescription>
+                <span className="text-[#55555F]">·</span>
+                <button
+                  onClick={handleCopyLink}
+                  className="flex items-center gap-1 text-xs text-[#55555F] transition-colors hover:text-[#9494A0]"
+                >
+                  <Link size={11} />
+                  {linkCopied ? "Copied!" : "Copy link"}
+                </button>
+              </div>
             </DialogHeader>
 
             {/* Metadata bar */}
@@ -178,6 +197,9 @@ export function EmberTaskDetailModal({
                 </div>
               )}
 
+              {/* Attachments */}
+              <TaskAttachments taskId={taskId} />
+
               {/* Comments */}
               <div>
                 <h4 className="mb-3 text-xs font-medium uppercase tracking-wider text-[#55555F]">
@@ -239,7 +261,7 @@ export function EmberTaskDetailModal({
             </div>
 
             {/* Footer actions */}
-            <div className="border-t border-white/[0.06] px-6 py-3">
+            <div className="flex justify-end border-t border-white/[0.06] px-6 py-3">
               <button
                 onClick={handleDelete}
                 className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-[#55555F] transition-colors hover:bg-[rgba(212,69,58,0.08)] hover:text-[#D4453A]"

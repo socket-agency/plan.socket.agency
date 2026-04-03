@@ -5,6 +5,7 @@ import {
   integer,
   date,
   timestamp,
+  jsonb,
 } from "drizzle-orm/pg-core";
 
 export const userRoles = ["owner", "client"] as const;
@@ -91,6 +92,36 @@ export const attachments = pgTable("attachments", {
     .defaultNow(),
 });
 
+export const messageRoles = ["user", "assistant", "system"] as const;
+export type MessageRole = (typeof messageRoles)[number];
+
+export const conversations = pgTable("conversations", {
+  id: text("id").primaryKey(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  title: text("title"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+});
+
+export const chatMessages = pgTable("chat_messages", {
+  id: text("id").primaryKey(),
+  conversationId: text("conversation_id")
+    .notNull()
+    .references(() => conversations.id, { onDelete: "cascade" }),
+  role: text("role", { enum: messageRoles }).notNull(),
+  parts: jsonb("parts").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Task = typeof tasks.$inferSelect;
@@ -99,3 +130,7 @@ export type Comment = typeof comments.$inferSelect;
 export type NewComment = typeof comments.$inferInsert;
 export type Attachment = typeof attachments.$inferSelect;
 export type NewAttachment = typeof attachments.$inferInsert;
+export type Conversation = typeof conversations.$inferSelect;
+export type NewConversation = typeof conversations.$inferInsert;
+export type ChatMessage = typeof chatMessages.$inferSelect;
+export type NewChatMessage = typeof chatMessages.$inferInsert;

@@ -22,6 +22,13 @@
       "when": 1775171235059,
       "tag": "0002_rich_sphinx",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1775223837332,
+      "tag": "0003_brainy_master_mold",
+      "breakpoints": true
     }
   ]
 }

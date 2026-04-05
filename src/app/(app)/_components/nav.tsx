@@ -1,11 +1,12 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { LayoutGrid, Users, Settings, LogOut } from "lucide-react";
+import { LayoutGrid, Users, Settings, LogOut, KeyRound } from "lucide-react";
 
 const navItems = [
   { href: "/", icon: LayoutGrid, label: "Board", exact: true },
   { href: "/users", icon: Users, label: "Users" },
+  { href: "/api-keys", icon: KeyRound, label: "API Keys" },
   { href: "/settings", icon: Settings, label: "Settings" },
 ];
 

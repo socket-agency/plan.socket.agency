@@ -36,6 +36,13 @@
       "when": 1775240659448,
       "tag": "0004_regular_sunfire",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1775334088047,
+      "tag": "0005_strange_patriot",
+      "breakpoints": true
     }
   ]
 }

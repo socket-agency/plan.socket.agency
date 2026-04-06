@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useTaskEvents } from "@/hooks/use-task-events";
 import { useComments } from "@/hooks/use-comments";
+import { Markdown } from "@/components/ui/markdown";
 import type { TaskEventWithActor, CommentWithAuthor, TaskEventType } from "@/lib/types";
 
 const statusLabels: Record<string, string> = {
@@ -262,7 +263,7 @@ function CommentRow({ comment }: { comment: CommentWithAuthor }) {
           {formatRelativeTime(comment.createdAt)}
         </span>
       </div>
-      <p className="text-sm leading-relaxed text-[#9494A0]">{comment.body}</p>
+      <Markdown className="text-sm leading-relaxed text-[#9494A0]">{comment.body}</Markdown>
     </div>
   );
 }

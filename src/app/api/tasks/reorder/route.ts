@@ -2,8 +2,9 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/db";
 import { tasks, taskStatuses } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { requireOwner } from "@/lib/api-auth";
+import { logTaskEvent } from "@/lib/task-events";
 
 const reorderSchema = z.object({
   items: z.array(
@@ -16,7 +17,7 @@ const reorderSchema = z.object({
 });
 
 export async function PATCH(request: Request) {
-  const { error } = await requireOwner();
+  const { session, error } = await requireOwner();
   if (error) return error;
 
   let body: unknown;
@@ -34,6 +35,14 @@ export async function PATCH(request: Request) {
     );
   }
 
+  // Fetch current statuses to detect actual status changes (not just position moves)
+  const taskIds = parsed.data.items.map((i) => i.id);
+  const currentTasks = await db
+    .select({ id: tasks.id, status: tasks.status })
+    .from(tasks)
+    .where(inArray(tasks.id, taskIds));
+  const statusMap = new Map(currentTasks.map((t) => [t.id, t.status]));
+
   await Promise.all(
     parsed.data.items.map((item) =>
       db
@@ -45,6 +54,24 @@ export async function PATCH(request: Request) {
         .where(eq(tasks.id, item.id))
     )
   );
+
+  // Log status_changed events for tasks that actually changed column
+  const statusChanges = parsed.data.items.filter(
+    (item) => statusMap.get(item.id) && statusMap.get(item.id) !== item.status,
+  );
+  if (statusChanges.length > 0) {
+    await Promise.all(
+      statusChanges.map((item) =>
+        logTaskEvent({
+          taskId: item.id,
+          actorId: session.userId,
+          type: "status_changed",
+          oldValue: statusMap.get(item.id),
+          newValue: item.status,
+        }),
+      ),
+    );
+  }
 
   return NextResponse.json({ success: true });
 }

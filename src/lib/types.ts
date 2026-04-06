@@ -6,10 +6,23 @@ export type {
   TaskStatus,
   TaskPriority,
   TaskAssignee,
+  TaskEventType,
   UserRole,
 } from "@/db/schema";
 
 export { taskStatuses, taskPriorities, taskAssignees } from "@/db/schema";
+
+export interface TaskEventWithActor {
+  id: string;
+  type: TaskEventType;
+  oldValue: unknown;
+  newValue: unknown;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+  actorId: string | null;
+  actorName: string | null;
+  actorRole: "owner" | "client" | null;
+}
 
 export interface CommentWithAuthor {
   id: string;

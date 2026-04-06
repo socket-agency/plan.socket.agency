@@ -8,9 +8,11 @@ import {
   taskStatuses,
   taskPriorities,
   taskAssignees,
+  notDeleted,
 } from "@/db/schema";
-import { eq, asc, sql } from "drizzle-orm";
+import { eq, asc, and, sql } from "drizzle-orm";
 import type { UserRole } from "@/db/schema";
+import { logTaskEvent, logTaskChanges, getTaskForComparison } from "@/lib/task-events";
 
 export function registerTaskTools(server: McpServer) {
   server.tool(
@@ -32,6 +34,7 @@ export function registerTaskTools(server: McpServer) {
       let allTasks = await db
         .select()
         .from(tasks)
+        .where(notDeleted)
         .orderBy(asc(tasks.position));
 
       if (status) allTasks = allTasks.filter((t) => t.status === status);
@@ -71,7 +74,7 @@ export function registerTaskTools(server: McpServer) {
       const [task] = await db
         .select()
         .from(tasks)
-        .where(eq(tasks.id, taskId))
+        .where(and(eq(tasks.id, taskId), notDeleted))
         .limit(1);
 
       if (!task) {
@@ -147,7 +150,8 @@ export function registerTaskTools(server: McpServer) {
 
       const allTasks = await db
         .select({ position: tasks.position })
-        .from(tasks);
+        .from(tasks)
+        .where(notDeleted);
       const maxPos = Math.max(0, ...allTasks.map((t) => t.position));
 
       const [task] = await db
@@ -163,6 +167,13 @@ export function registerTaskTools(server: McpServer) {
           createdBy: userId,
         })
         .returning();
+
+      await logTaskEvent({
+        taskId: task.id,
+        actorId: userId,
+        type: "task_created",
+        newValue: { status: task.status, priority: task.priority, assignee: task.assignee },
+      });
 
       return {
         content: [
@@ -191,6 +202,7 @@ export function registerTaskTools(server: McpServer) {
     },
     async ({ taskId, ...params }, extra) => {
       const role = (extra.authInfo?.extra as { role: UserRole })?.role;
+      const userId = (extra.authInfo?.extra as { userId: string })?.userId;
       if (role !== "owner") {
         return {
           content: [
@@ -199,6 +211,19 @@ export function registerTaskTools(server: McpServer) {
               text: JSON.stringify({
                 error: "Forbidden: owner role required",
               }),
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      const oldTask = await getTaskForComparison(taskId);
+      if (!oldTask) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify({ error: "Task not found" }),
             },
           ],
           isError: true,
@@ -218,7 +243,7 @@ export function registerTaskTools(server: McpServer) {
       const [task] = await db
         .update(tasks)
         .set(setValues)
-        .where(eq(tasks.id, taskId))
+        .where(and(eq(tasks.id, taskId), notDeleted))
         .returning();
 
       if (!task) {
@@ -232,6 +257,8 @@ export function registerTaskTools(server: McpServer) {
           isError: true,
         };
       }
+
+      await logTaskChanges(oldTask, setValues, userId);
 
       return {
         content: [
@@ -252,6 +279,7 @@ export function registerTaskTools(server: McpServer) {
     { taskId: z.string().uuid().describe("The task ID to delete") },
     async ({ taskId }, extra) => {
       const role = (extra.authInfo?.extra as { role: UserRole })?.role;
+      const userId = (extra.authInfo?.extra as { userId: string })?.userId;
       if (role !== "owner") {
         return {
           content: [
@@ -267,8 +295,9 @@ export function registerTaskTools(server: McpServer) {
       }
 
       const [task] = await db
-        .delete(tasks)
-        .where(eq(tasks.id, taskId))
+        .update(tasks)
+        .set({ isDeleted: true, deletedAt: new Date() })
+        .where(and(eq(tasks.id, taskId), notDeleted))
         .returning();
 
       if (!task) {
@@ -282,6 +311,12 @@ export function registerTaskTools(server: McpServer) {
           isError: true,
         };
       }
+
+      await logTaskEvent({
+        taskId: task.id,
+        actorId: userId,
+        type: "task_deleted",
+      });
 
       return {
         content: [

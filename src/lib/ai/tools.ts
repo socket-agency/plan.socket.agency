@@ -1,9 +1,10 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { db } from "@/db";
-import { tasks } from "@/db/schema";
-import { eq, asc } from "drizzle-orm";
+import { tasks, notDeleted } from "@/db/schema";
+import { eq, asc, and } from "drizzle-orm";
 import type { UserRole } from "@/db/schema";
+import { logTaskEvent, logTaskChanges, getTaskForComparison } from "@/lib/task-events";
 
 function readTools() {
   return {
@@ -28,6 +29,7 @@ function readTools() {
         let allTasks = await db
           .select()
           .from(tasks)
+          .where(notDeleted)
           .orderBy(asc(tasks.position));
 
         if (params.status)
@@ -57,7 +59,7 @@ function readTools() {
         const [task] = await db
           .select()
           .from(tasks)
-          .where(eq(tasks.id, taskId))
+          .where(and(eq(tasks.id, taskId), notDeleted))
           .limit(1);
         return task || { error: "Task not found" };
       },
@@ -68,7 +70,7 @@ function readTools() {
         "Get a summary of tasks: counts per status, overdue tasks, and progress stats",
       inputSchema: z.object({}),
       execute: async () => {
-        const allTasks = await db.select().from(tasks);
+        const allTasks = await db.select().from(tasks).where(notDeleted);
         const today = new Date().toISOString().split("T")[0];
 
         const byStatus: Record<string, number> = {};
@@ -123,7 +125,7 @@ function writeTools(userId: string) {
           .describe("Due date in YYYY-MM-DD format"),
       }),
       execute: async (params) => {
-        const allTasks = await db.select().from(tasks);
+        const allTasks = await db.select().from(tasks).where(notDeleted);
         const maxPos = Math.max(0, ...allTasks.map((t) => t.position));
 
         const [task] = await db
@@ -139,6 +141,13 @@ function writeTools(userId: string) {
             createdBy: userId,
           })
           .returning();
+
+        await logTaskEvent({
+          taskId: task.id,
+          actorId: userId,
+          type: "task_created",
+          newValue: { status: task.status, priority: task.priority, assignee: task.assignee },
+        });
 
         return { created: { id: task.id, title: task.title } };
       },
@@ -161,6 +170,9 @@ function writeTools(userId: string) {
           .describe("YYYY-MM-DD or empty to clear"),
       }),
       execute: async (params) => {
+        const oldTask = await getTaskForComparison(params.taskId);
+        if (!oldTask) return { error: "Task not found" };
+
         const setValues: Record<string, unknown> = {};
         if (params.title !== undefined) setValues.title = params.title;
         if (params.description !== undefined)
@@ -174,12 +186,14 @@ function writeTools(userId: string) {
         const [task] = await db
           .update(tasks)
           .set(setValues)
-          .where(eq(tasks.id, params.taskId))
+          .where(and(eq(tasks.id, params.taskId), notDeleted))
           .returning();
 
-        return task
-          ? { updated: { id: task.id, title: task.title } }
-          : { error: "Task not found" };
+        if (!task) return { error: "Task not found" };
+
+        await logTaskChanges(oldTask, setValues, userId);
+
+        return { updated: { id: task.id, title: task.title } };
       },
     }),
 
@@ -190,10 +204,19 @@ function writeTools(userId: string) {
       }),
       execute: async ({ taskId }) => {
         const [task] = await db
-          .delete(tasks)
-          .where(eq(tasks.id, taskId))
+          .update(tasks)
+          .set({ isDeleted: true, deletedAt: new Date() })
+          .where(and(eq(tasks.id, taskId), notDeleted))
           .returning();
-        return task ? { deleted: task.title } : { error: "Task not found" };
+        if (!task) return { error: "Task not found" };
+
+        await logTaskEvent({
+          taskId: task.id,
+          actorId: userId,
+          type: "task_deleted",
+        });
+
+        return { deleted: task.title };
       },
     }),
 
@@ -207,7 +230,7 @@ function writeTools(userId: string) {
           .describe("Report format"),
       }),
       execute: async ({ format }) => {
-        const allTasks = await db.select().from(tasks);
+        const allTasks = await db.select().from(tasks).where(notDeleted);
         const today = new Date().toISOString().split("T")[0];
 
         const done = allTasks.filter((t) => t.status === "done");
@@ -277,7 +300,7 @@ function clientCreateTool(userId: string) {
           .describe("Due date in YYYY-MM-DD format"),
       }),
       execute: async (params) => {
-        const allTasks = await db.select().from(tasks);
+        const allTasks = await db.select().from(tasks).where(notDeleted);
         const maxPos = Math.max(0, ...allTasks.map((t) => t.position));
 
         const [task] = await db
@@ -293,6 +316,13 @@ function clientCreateTool(userId: string) {
             createdBy: userId,
           })
           .returning();
+
+        await logTaskEvent({
+          taskId: task.id,
+          actorId: userId,
+          type: "task_created",
+          newValue: { status: "backlog", priority: task.priority, assignee: task.assignee },
+        });
 
         return { created: { id: task.id, title: task.title, status: "backlog" } };
       },

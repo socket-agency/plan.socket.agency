@@ -43,6 +43,13 @@
       "when": 1775334088047,
       "tag": "0005_strange_patriot",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1775473334267,
+      "tag": "0006_bright_rawhide_kid",
+      "breakpoints": true
     }
   ]
 }

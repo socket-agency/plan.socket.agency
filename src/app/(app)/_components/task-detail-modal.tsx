@@ -10,8 +10,9 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { useTask } from "@/hooks/use-task";
-import { useComments } from "@/hooks/use-comments";
 import { TaskAttachments } from "./task-attachments";
+import { TaskActivity } from "./task-activity";
+import { Markdown } from "@/components/ui/markdown";
 import type { TaskStatus, TaskPriority, TaskAssignee } from "@/lib/types";
 import { taskStatuses, taskPriorities, taskAssignees } from "@/lib/types";
 
@@ -42,9 +43,8 @@ export function EmberTaskDetailModal({
   onUpdate: () => void;
 }) {
   const { task, loading, updateTask, deleteTask } = useTask(taskId);
-  const { comments, addComment } = useComments(taskId);
-  const [newComment, setNewComment] = useState("");
   const [linkCopied, setLinkCopied] = useState(false);
+  const [activityKey, setActivityKey] = useState(0);
 
   const handleCopyLink = useCallback(() => {
     const url = `${window.location.origin}/tasks/${taskId}`;
@@ -55,16 +55,19 @@ export function EmberTaskDetailModal({
 
   const handleStatusChange = async (status: TaskStatus) => {
     await updateTask({ status });
+    setActivityKey((k) => k + 1);
     onUpdate();
   };
 
   const handlePriorityChange = async (priority: TaskPriority) => {
     await updateTask({ priority });
+    setActivityKey((k) => k + 1);
     onUpdate();
   };
 
   const handleAssigneeChange = async (assignee: TaskAssignee) => {
     await updateTask({ assignee });
+    setActivityKey((k) => k + 1);
     onUpdate();
   };
 
@@ -72,13 +75,6 @@ export function EmberTaskDetailModal({
     await deleteTask();
     onUpdate();
     onClose();
-  };
-
-  const handleAddComment = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newComment.trim()) return;
-    await addComment(newComment.trim());
-    setNewComment("");
   };
 
   return (
@@ -191,73 +187,17 @@ export function EmberTaskDetailModal({
                   <h4 className="mb-2 text-xs font-medium uppercase tracking-wider text-[#55555F]">
                     Description
                   </h4>
-                  <p className="text-sm leading-relaxed text-[#9494A0] whitespace-pre-wrap">
+                  <Markdown className="text-sm leading-relaxed text-[#9494A0]">
                     {task.description}
-                  </p>
+                  </Markdown>
                 </div>
               )}
 
               {/* Attachments */}
               <TaskAttachments taskId={taskId} />
 
-              {/* Comments */}
-              <div>
-                <h4 className="mb-3 text-xs font-medium uppercase tracking-wider text-[#55555F]">
-                  Comments ({comments.length})
-                </h4>
-                <div className="space-y-3">
-                  {comments.map((c) => (
-                    <div
-                      key={c.id}
-                      className="rounded-lg bg-[#1C1C21] p-3"
-                    >
-                      <div className="mb-1 flex items-center gap-2">
-                        <div
-                          className={`flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-medium ${
-                            c.authorRole === "owner"
-                              ? "bg-[rgba(212,69,58,0.12)] text-[#D4453A]"
-                              : "bg-[rgba(240,168,104,0.12)] text-[#F0A868]"
-                          }`}
-                        >
-                          {c.authorName.charAt(0).toUpperCase()}
-                        </div>
-                        <span className="text-xs font-medium text-[#F7F7F8]">
-                          {c.authorName}
-                        </span>
-                        <span className="text-xs text-[#55555F]">
-                          {new Date(c.createdAt).toLocaleString("en", {
-                            month: "short",
-                            day: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                            hour12: false,
-                          })}
-                        </span>
-                      </div>
-                      <p className="text-sm text-[#9494A0]">{c.body}</p>
-                    </div>
-                  ))}
-
-                  {/* Add comment */}
-                  <form
-                    onSubmit={handleAddComment}
-                    className="flex gap-2 pt-1"
-                  >
-                    <input
-                      value={newComment}
-                      onChange={(e) => setNewComment(e.target.value)}
-                      placeholder="Write a comment..."
-                      className="flex-1 rounded-lg border border-white/[0.06] bg-[#252529] px-3 py-2 text-sm text-[#F7F7F8] placeholder:text-[#55555F] focus:border-[#D4453A] focus:outline-none focus:ring-1 focus:ring-[#D4453A]/30"
-                    />
-                    <button
-                      type="submit"
-                      className="rounded-lg bg-[#D4453A] px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-[#C03830]"
-                    >
-                      Send
-                    </button>
-                  </form>
-                </div>
-              </div>
+              {/* Activity timeline (events + comments) */}
+              <TaskActivity taskId={taskId} refreshKey={activityKey} />
             </div>
 
             {/* Footer actions */}

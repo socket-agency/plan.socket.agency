@@ -3,11 +3,13 @@ import {
   uuid,
   text,
   integer,
+  boolean,
   date,
   timestamp,
   jsonb,
   index,
 } from "drizzle-orm/pg-core";
+import { eq } from "drizzle-orm";
 
 export const userRoles = ["owner", "client"] as const;
 export type UserRole = (typeof userRoles)[number];
@@ -59,7 +61,12 @@ export const tasks = pgTable("tasks", {
     .notNull()
     .defaultNow()
     .$onUpdate(() => new Date()),
+  isDeleted: boolean("is_deleted").notNull().default(false),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
 });
+
+/** Reusable filter to exclude soft-deleted tasks from queries. */
+export const notDeleted = eq(tasks.isDeleted, false);
 
 export const comments = pgTable("comments", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -109,6 +116,40 @@ export const apiKeys = pgTable("api_keys", {
   expiresAt: timestamp("expires_at", { withTimezone: true }),
 });
 
+export const taskEventTypes = [
+  "task_created",
+  "status_changed",
+  "priority_changed",
+  "assignee_changed",
+  "due_date_changed",
+  "title_changed",
+  "description_changed",
+  "comment_added",
+  "attachment_added",
+  "attachment_removed",
+  "task_deleted",
+] as const;
+export type TaskEventType = (typeof taskEventTypes)[number];
+
+export const taskEvents = pgTable(
+  "task_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    taskId: uuid("task_id")
+      .notNull()
+      .references(() => tasks.id, { onDelete: "cascade" }),
+    actorId: uuid("actor_id").references(() => users.id),
+    type: text("type", { enum: taskEventTypes }).notNull(),
+    oldValue: jsonb("old_value"),
+    newValue: jsonb("new_value"),
+    metadata: jsonb("metadata"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [index("task_events_task_id_idx").on(table.taskId)],
+);
+
 export const messageRoles = ["user", "assistant", "system"] as const;
 export type MessageRole = (typeof messageRoles)[number];
 
@@ -157,3 +198,5 @@ export type ChatMessage = typeof chatMessages.$inferSelect;
 export type NewChatMessage = typeof chatMessages.$inferInsert;
 export type ApiKey = typeof apiKeys.$inferSelect;
 export type NewApiKey = typeof apiKeys.$inferInsert;
+export type TaskEvent = typeof taskEvents.$inferSelect;
+export type NewTaskEvent = typeof taskEvents.$inferInsert;

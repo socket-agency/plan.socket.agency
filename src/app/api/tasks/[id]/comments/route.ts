@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/db";
-import { comments, tasks, users } from "@/db/schema";
-import { eq, asc } from "drizzle-orm";
+import { comments, tasks, users, notDeleted } from "@/db/schema";
+import { eq, asc, and } from "drizzle-orm";
 import { requireAuth } from "@/lib/api-auth";
+import { logTaskEvent } from "@/lib/task-events";
 
 const createCommentSchema = z.object({
   body: z.string().min(1).max(5000),
@@ -13,7 +14,7 @@ async function validateTaskId(id: string) {
   if (!z.string().uuid().safeParse(id).success) {
     return { error: NextResponse.json({ error: "Invalid task ID" }, { status: 400 }) };
   }
-  const [task] = await db.select({ id: tasks.id }).from(tasks).where(eq(tasks.id, id)).limit(1);
+  const [task] = await db.select({ id: tasks.id }).from(tasks).where(and(eq(tasks.id, id), notDeleted)).limit(1);
   if (!task) {
     return { error: NextResponse.json({ error: "Task not found" }, { status: 404 }) };
   }
@@ -82,6 +83,13 @@ export async function POST(
       body: parsed.data.body,
     })
     .returning();
+
+  await logTaskEvent({
+    taskId: id,
+    actorId: session.userId,
+    type: "comment_added",
+    metadata: { commentId: comment.id },
+  });
 
   return NextResponse.json(comment, { status: 201 });
 }

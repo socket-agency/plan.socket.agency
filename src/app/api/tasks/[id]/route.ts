@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/db";
-import { tasks, attachments, taskStatuses, taskPriorities, taskAssignees } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { tasks, attachments, taskStatuses, taskPriorities, taskAssignees, notDeleted } from "@/db/schema";
+import { eq, and } from "drizzle-orm";
 import { del } from "@vercel/blob";
 import { requireAuth, requireOwner } from "@/lib/api-auth";
+import { logTaskEvent, logTaskChanges, getTaskForComparison } from "@/lib/task-events";
 
 const updateTaskSchema = z.object({
   title: z.string().min(1).max(500).optional(),
@@ -28,7 +29,7 @@ export async function GET(
   const [task] = await db
     .select()
     .from(tasks)
-    .where(eq(tasks.id, id))
+    .where(and(eq(tasks.id, id), notDeleted))
     .limit(1);
 
   if (!task) {
@@ -42,7 +43,7 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { error } = await requireOwner();
+  const { session, error } = await requireOwner();
   if (error) return error;
 
   const { id } = await params;
@@ -72,15 +73,22 @@ export async function PATCH(
   if (updates.position !== undefined) setValues.position = updates.position;
   if (updates.dueDate !== undefined) setValues.dueDate = updates.dueDate;
 
+  const oldTask = await getTaskForComparison(id);
+  if (!oldTask) {
+    return NextResponse.json({ error: "Task not found" }, { status: 404 });
+  }
+
   const [task] = await db
     .update(tasks)
     .set(setValues)
-    .where(eq(tasks.id, id))
+    .where(and(eq(tasks.id, id), notDeleted))
     .returning();
 
   if (!task) {
     return NextResponse.json({ error: "Task not found" }, { status: 404 });
   }
+
+  await logTaskChanges(oldTask, setValues, session.userId);
 
   return NextResponse.json(task);
 }
@@ -89,27 +97,33 @@ export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { error } = await requireOwner();
+  const { session, error } = await requireOwner();
   if (error) return error;
 
   const { id } = await params;
 
-  // Fetch attachment URLs before cascade delete removes them
-  const taskAttachments = await db
-    .select({ url: attachments.url })
-    .from(attachments)
-    .where(eq(attachments.taskId, id));
-
   const [task] = await db
-    .delete(tasks)
-    .where(eq(tasks.id, id))
+    .update(tasks)
+    .set({ isDeleted: true, deletedAt: new Date() })
+    .where(and(eq(tasks.id, id), notDeleted))
     .returning();
 
   if (!task) {
     return NextResponse.json({ error: "Task not found" }, { status: 404 });
   }
 
+  await logTaskEvent({
+    taskId: task.id,
+    actorId: session.userId,
+    type: "task_deleted",
+  });
+
   // Clean up blob storage (best-effort, don't fail the request if this errors)
+  const taskAttachments = await db
+    .select({ url: attachments.url })
+    .from(attachments)
+    .where(eq(attachments.taskId, id));
+
   if (taskAttachments.length > 0) {
     const urls = taskAttachments.map((a) => a.url);
     await del(urls).catch(() => {});

@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/db";
-import { tasks, taskStatuses, taskPriorities, taskAssignees } from "@/db/schema";
+import { tasks, taskStatuses, taskPriorities, taskAssignees, notDeleted } from "@/db/schema";
 import { asc } from "drizzle-orm";
 import { requireAuth } from "@/lib/api-auth";
+import { logTaskEvent } from "@/lib/task-events";
 
 const createTaskSchema = z.object({
   title: z.string().min(1).max(500),
@@ -18,7 +19,7 @@ export async function GET() {
   const { error } = await requireAuth();
   if (error) return error;
 
-  const allTasks = await db.select().from(tasks).orderBy(asc(tasks.position));
+  const allTasks = await db.select().from(tasks).where(notDeleted).orderBy(asc(tasks.position));
 
   return NextResponse.json(allTasks);
 }
@@ -48,7 +49,8 @@ export async function POST(request: Request) {
 
   const allTasks = await db
     .select({ position: tasks.position })
-    .from(tasks);
+    .from(tasks)
+    .where(notDeleted);
   const maxPosition =
     allTasks.length > 0
       ? Math.max(...allTasks.map((t) => t.position))
@@ -67,6 +69,13 @@ export async function POST(request: Request) {
       createdBy: session.userId,
     })
     .returning();
+
+  await logTaskEvent({
+    taskId: task.id,
+    actorId: session.userId,
+    type: "task_created",
+    newValue: { status: task.status, priority: task.priority, assignee: task.assignee },
+  });
 
   return NextResponse.json(task, { status: 201 });
 }

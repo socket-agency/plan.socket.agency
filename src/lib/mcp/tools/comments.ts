@@ -1,8 +1,9 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { db } from "@/db";
-import { comments, tasks, users } from "@/db/schema";
-import { eq, asc } from "drizzle-orm";
+import { comments, tasks, users, notDeleted } from "@/db/schema";
+import { eq, asc, and } from "drizzle-orm";
+import { logTaskEvent } from "@/lib/task-events";
 
 export function registerCommentTools(server: McpServer) {
   server.tool(
@@ -13,7 +14,7 @@ export function registerCommentTools(server: McpServer) {
       const [task] = await db
         .select({ id: tasks.id })
         .from(tasks)
-        .where(eq(tasks.id, taskId))
+        .where(and(eq(tasks.id, taskId), notDeleted))
         .limit(1);
 
       if (!task) {
@@ -73,7 +74,7 @@ export function registerCommentTools(server: McpServer) {
       const [task] = await db
         .select({ id: tasks.id })
         .from(tasks)
-        .where(eq(tasks.id, taskId))
+        .where(and(eq(tasks.id, taskId), notDeleted))
         .limit(1);
 
       if (!task) {
@@ -92,6 +93,13 @@ export function registerCommentTools(server: McpServer) {
         .insert(comments)
         .values({ taskId, authorId: userId, body })
         .returning();
+
+      await logTaskEvent({
+        taskId,
+        actorId: userId,
+        type: "comment_added",
+        metadata: { commentId: comment.id },
+      });
 
       return {
         content: [

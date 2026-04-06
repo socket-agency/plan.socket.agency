@@ -1,8 +1,8 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { db } from "@/db";
-import { attachments, tasks } from "@/db/schema";
-import { eq, asc } from "drizzle-orm";
+import { attachments, tasks, notDeleted } from "@/db/schema";
+import { eq, asc, and } from "drizzle-orm";
 import { get } from "@vercel/blob";
 
 const MAX_INLINE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -28,7 +28,7 @@ export function registerAttachmentTools(server: McpServer) {
       const [task] = await db
         .select({ id: tasks.id })
         .from(tasks)
-        .where(eq(tasks.id, taskId))
+        .where(and(eq(tasks.id, taskId), notDeleted))
         .limit(1);
 
       if (!task) {

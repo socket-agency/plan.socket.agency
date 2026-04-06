@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { attachments } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { requireAuth } from "@/lib/api-auth";
+import { logTaskEvent } from "@/lib/task-events";
 import { del } from "@vercel/blob";
 
 export async function DELETE(
@@ -14,7 +15,7 @@ export async function DELETE(
   const { session, error } = await requireAuth();
   if (error) return error;
 
-  const { attachmentId } = await params;
+  const { id, attachmentId } = await params;
 
   const [attachment] = await db
     .select()
@@ -39,6 +40,13 @@ export async function DELETE(
 
   await del(attachment.url);
   await db.delete(attachments).where(eq(attachments.id, attachmentId));
+
+  await logTaskEvent({
+    taskId: id,
+    actorId: session.userId,
+    type: "attachment_removed",
+    metadata: { attachmentId, filename: attachment.filename },
+  });
 
   return NextResponse.json({ success: true });
 }

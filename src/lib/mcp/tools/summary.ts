@@ -1,6 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { db } from "@/db";
-import { tasks } from "@/db/schema";
+import { tasks, notDeleted } from "@/db/schema";
 
 export function registerSummaryTools(server: McpServer) {
   server.tool(
@@ -8,7 +8,7 @@ export function registerSummaryTools(server: McpServer) {
     "Get a summary of the board: counts per status, priority, assignee, overdue tasks, and completion rate",
     {},
     async () => {
-      const allTasks = await db.select().from(tasks);
+      const allTasks = await db.select().from(tasks).where(notDeleted);
       const today = new Date().toISOString().split("T")[0];
 
       const byStatus: Record<string, number> = {};

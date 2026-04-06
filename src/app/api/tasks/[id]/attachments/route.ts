@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/db";
-import { attachments, tasks } from "@/db/schema";
-import { eq, asc } from "drizzle-orm";
+import { attachments, tasks, notDeleted } from "@/db/schema";
+import { eq, asc, and } from "drizzle-orm";
 import { requireAuth } from "@/lib/api-auth";
+import { logTaskEvent } from "@/lib/task-events";
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 
 async function validateTaskId(id: string) {
@@ -15,7 +16,7 @@ async function validateTaskId(id: string) {
   const [task] = await db
     .select({ id: tasks.id })
     .from(tasks)
-    .where(eq(tasks.id, id))
+    .where(and(eq(tasks.id, id), notDeleted))
     .limit(1);
   if (!task) {
     return {
@@ -106,6 +107,13 @@ export async function POST(
       size: parsed.data.size,
     })
     .returning();
+
+  await logTaskEvent({
+    taskId: id,
+    actorId: session.userId,
+    type: "attachment_added",
+    metadata: { attachmentId: attachment.id, filename: parsed.data.filename },
+  });
 
   return NextResponse.json(attachment, { status: 201 });
 }

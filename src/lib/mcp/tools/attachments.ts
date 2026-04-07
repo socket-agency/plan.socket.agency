@@ -1,9 +1,10 @@
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { db } from "@/db";
 import { attachments, tasks, notDeleted } from "@/db/schema";
 import { eq, asc, and } from "drizzle-orm";
-import { get } from "@vercel/blob";
+import { get, put } from "@vercel/blob";
+import { logTaskEvent } from "@/lib/task-events";
+import { defineTool, type McpServer } from "@/lib/mcp/define-tool";
 
 const MAX_INLINE_SIZE = 5 * 1024 * 1024; // 5MB
 
@@ -20,7 +21,8 @@ function isTextType(contentType: string): boolean {
 }
 
 export function registerAttachmentTools(server: McpServer) {
-  server.tool(
+  defineTool(
+    server,
     "get_task_attachments",
     "List all attachment metadata for a task",
     { taskId: z.string().uuid().describe("The task ID") },
@@ -63,7 +65,8 @@ export function registerAttachmentTools(server: McpServer) {
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "get_attachment_file",
     "Get the content of an attachment. Returns base64 image data for images, text content for text files, or metadata for large/binary files.",
     { attachmentId: z.string().uuid().describe("The attachment ID") },
@@ -167,6 +170,133 @@ export function registerAttachmentTools(server: McpServer) {
               type: "text" as const,
               text: JSON.stringify({
                 error: "Failed to fetch file from storage",
+              }),
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  defineTool(
+    server,
+    "add_attachment",
+    "Upload a file attachment to a task. Content must be base64-encoded. Max 5MB.",
+    {
+      taskId: z.string().uuid().describe("The task ID"),
+      filename: z
+        .string()
+        .min(1)
+        .max(255)
+        .describe("Original filename including extension"),
+      contentType: z
+        .string()
+        .min(1)
+        .describe("MIME type of the file (e.g. image/png, application/pdf)"),
+      base64Content: z
+        .string()
+        .min(1)
+        .describe("File content encoded as base64"),
+    },
+    async ({ taskId, filename, contentType, base64Content }, extra) => {
+      const userId = (extra.authInfo?.extra as { userId: string })?.userId;
+      if (!userId) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify({ error: "Unauthorized" }),
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      const [task] = await db
+        .select({ id: tasks.id })
+        .from(tasks)
+        .where(and(eq(tasks.id, taskId), notDeleted))
+        .limit(1);
+
+      if (!task) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify({ error: "Task not found" }),
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      const buffer = Buffer.from(base64Content, "base64");
+
+      if (buffer.length > MAX_INLINE_SIZE) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify({
+                error:
+                  "File too large. Maximum size is 5MB. Use the web UI for larger files.",
+              }),
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      try {
+        const blob = await put(filename, buffer, {
+          access: "private",
+          contentType,
+          addRandomSuffix: true,
+        });
+
+        const [attachment] = await db
+          .insert(attachments)
+          .values({
+            taskId,
+            uploadedBy: userId,
+            url: blob.url,
+            pathname: blob.pathname,
+            filename,
+            contentType,
+            size: buffer.length,
+          })
+          .returning();
+
+        await logTaskEvent({
+          taskId,
+          actorId: userId,
+          type: "attachment_added",
+          metadata: { attachmentId: attachment.id },
+        });
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify({
+                created: {
+                  id: attachment.id,
+                  taskId,
+                  filename,
+                  size: buffer.length,
+                },
+              }),
+            },
+          ],
+        };
+      } catch {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify({
+                error: "Failed to upload file to storage",
               }),
             },
           ],

@@ -1,5 +1,5 @@
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import { defineTool, type McpServer } from "@/lib/mcp/define-tool";
 import { db } from "@/db";
 import {
   tasks,
@@ -15,7 +15,7 @@ import type { UserRole } from "@/db/schema";
 import { logTaskEvent, logTaskChanges, getTaskForComparison } from "@/lib/task-events";
 
 export function registerTaskTools(server: McpServer) {
-  server.tool(
+  defineTool(server,
     "list_tasks",
     "List all tasks, optionally filtered by status, priority, or assignee",
     {
@@ -66,7 +66,7 @@ export function registerTaskTools(server: McpServer) {
     }
   );
 
-  server.tool(
+  defineTool(server,
     "get_task",
     "Get full details of a task by ID, including comment and attachment counts",
     { taskId: z.string().uuid().describe("The task ID") },
@@ -113,7 +113,7 @@ export function registerTaskTools(server: McpServer) {
     }
   );
 
-  server.tool(
+  defineTool(server,
     "create_task",
     "Create a new task",
     {
@@ -188,7 +188,7 @@ export function registerTaskTools(server: McpServer) {
     }
   );
 
-  server.tool(
+  defineTool(server,
     "update_task",
     "Update an existing task's fields (owner only)",
     {
@@ -273,7 +273,7 @@ export function registerTaskTools(server: McpServer) {
     }
   );
 
-  server.tool(
+  defineTool(server,
     "delete_task",
     "Delete a task by ID (owner only)",
     { taskId: z.string().uuid().describe("The task ID to delete") },

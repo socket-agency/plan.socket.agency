@@ -1,3 +1,5 @@
+import type { TaskEventType } from "@/db/schema";
+
 export type {
   Task,
   Comment,

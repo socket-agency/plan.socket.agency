@@ -1,9 +1,9 @@
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { defineTool, type McpServer } from "@/lib/mcp/define-tool";
 import { db } from "@/db";
 import { tasks, notDeleted } from "@/db/schema";
 
 export function registerSummaryTools(server: McpServer) {
-  server.tool(
+  defineTool(server,
     "get_board_summary",
     "Get a summary of the board: counts per status, priority, assignee, overdue tasks, and completion rate",
     {},

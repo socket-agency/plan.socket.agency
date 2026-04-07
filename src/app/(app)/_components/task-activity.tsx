@@ -213,7 +213,7 @@ function EventDescription({ event }: { event: TaskEventWithActor }) {
 }
 
 function EventRow({ event }: { event: TaskEventWithActor }) {
-  const Icon = EVENT_ICONS[event.type] ?? FileText;
+  const Icon = EVENT_ICONS[event.type as TaskEventType] ?? FileText;
   const isDeleted = event.type === "task_deleted";
 
   return (

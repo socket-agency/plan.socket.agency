@@ -1,12 +1,12 @@
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import { defineTool, type McpServer } from "@/lib/mcp/define-tool";
 import { db } from "@/db";
 import { comments, tasks, users, notDeleted } from "@/db/schema";
 import { eq, asc, and } from "drizzle-orm";
 import { logTaskEvent } from "@/lib/task-events";
 
 export function registerCommentTools(server: McpServer) {
-  server.tool(
+  defineTool(server,
     "get_task_comments",
     "Get all comments for a task, with author information",
     { taskId: z.string().uuid().describe("The task ID") },
@@ -50,7 +50,7 @@ export function registerCommentTools(server: McpServer) {
     }
   );
 
-  server.tool(
+  defineTool(server,
     "add_comment",
     "Add a comment to a task",
     {

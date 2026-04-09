@@ -29,9 +29,11 @@ const statusDotColors: Record<TaskStatus, string> = {
 function SortableTaskCard({
   task,
   onClick,
+  isDraggable = true,
 }: {
   task: Task;
   onClick: () => void;
+  isDraggable?: boolean;
 }) {
   const {
     attributes,
@@ -48,7 +50,7 @@ function SortableTaskCard({
   };
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+    <div ref={setNodeRef} style={style} {...attributes} {...(isDraggable ? listeners : {})}>
       <EmberTaskCard task={task} onClick={onClick} isDragging={isDragging} />
     </div>
   );
@@ -59,11 +61,13 @@ export function EmberColumn({
   tasks,
   onTaskClick,
   isDropTarget,
+  isDraggable = true,
 }: {
   status: TaskStatus;
   tasks: Task[];
   onTaskClick: (taskId: string) => void;
   isDropTarget?: boolean;
+  isDraggable?: boolean;
 }) {
   const { setNodeRef } = useDroppable({ id: status });
 
@@ -99,6 +103,7 @@ export function EmberColumn({
               key={task.id}
               task={task}
               onClick={() => onTaskClick(task.id)}
+              isDraggable={isDraggable}
             />
           ))}
         </SortableContext>

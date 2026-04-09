@@ -21,8 +21,11 @@ import { EmberTaskDetailModal } from "./task-detail-modal";
 import { EmberAiChat } from "./ai-chat";
 import { Plus, Sparkles } from "lucide-react";
 import { BoardFilters } from "./board-filters";
+import { useAuth } from "@/hooks/use-auth";
 
 export function EmberBoard({ initialTaskId }: { initialTaskId?: string }) {
+  const { user } = useAuth();
+  const isOwner = user?.role === "owner";
   const { tasks, loading, reorder, fetchTasks, createTask } = useTasks();
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(
     initialTaskId ?? null
@@ -62,7 +65,7 @@ export function EmberBoard({ initialTaskId }: { initialTaskId?: string }) {
   const [creating, setCreating] = useState(false);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: isOwner ? 5 : Infinity } })
   );
 
   const columnTasks = useCallback(
@@ -259,6 +262,7 @@ export function EmberBoard({ initialTaskId }: { initialTaskId?: string }) {
                 tasks={columnTasks(status)}
                 onTaskClick={openTask}
                 isDropTarget={overColumnId === status}
+                isDraggable={isOwner}
               />
             ))}
           </div>

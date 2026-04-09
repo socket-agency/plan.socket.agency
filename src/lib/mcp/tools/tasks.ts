@@ -13,6 +13,7 @@ import {
 import { eq, asc, and, sql } from "drizzle-orm";
 import type { UserRole } from "@/db/schema";
 import { logTaskEvent, logTaskChanges, getTaskForComparison } from "@/lib/task-events";
+import { canEditTask, filterClientUpdates } from "@/lib/api-auth";
 
 export function registerTaskTools(server: McpServer) {
   defineTool(server,
@@ -198,7 +199,7 @@ export function registerTaskTools(server: McpServer) {
 
   defineTool(server,
     "update_task",
-    "Update an existing task's fields (owner only)",
+    "Update an existing task's fields. Owners can update any task; clients can edit their own backlog tasks (title, description, priority, assignee, reviewer, dueDate only).",
     {
       taskId: z.string().uuid().describe("The task ID to update"),
       title: z.string().optional(),
@@ -212,14 +213,13 @@ export function registerTaskTools(server: McpServer) {
     async ({ taskId, ...params }, extra) => {
       const role = (extra.authInfo?.extra as { role: UserRole })?.role;
       const userId = (extra.authInfo?.extra as { userId: string })?.userId;
-      if (role !== "owner") {
+
+      if (!userId || !role) {
         return {
           content: [
             {
               type: "text" as const,
-              text: JSON.stringify({
-                error: "Forbidden: owner role required",
-              }),
+              text: JSON.stringify({ error: "Unauthorized" }),
             },
           ],
           isError: true,
@@ -239,7 +239,19 @@ export function registerTaskTools(server: McpServer) {
         };
       }
 
-      const setValues: Record<string, unknown> = {};
+      if (!canEditTask({ userId, role }, oldTask)) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify({ error: "Forbidden" }),
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      let setValues: Record<string, unknown> = {};
       if (params.title !== undefined) setValues.title = params.title;
       if (params.description !== undefined)
         setValues.description = params.description;
@@ -249,6 +261,24 @@ export function registerTaskTools(server: McpServer) {
       if (params.reviewer !== undefined) setValues.reviewer = params.reviewer;
       if (params.dueDate !== undefined)
         setValues.dueDate = params.dueDate || null;
+
+      if (role !== "owner") {
+        const filtered = filterClientUpdates(setValues);
+        if (!filtered) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify({
+                  error: "Clients can only edit title, description, priority, assignee, reviewer, and due date on their own backlog tasks",
+                }),
+              },
+            ],
+            isError: true,
+          };
+        }
+        setValues = filtered;
+      }
 
       const [task] = await db
         .update(tasks)
@@ -285,19 +315,43 @@ export function registerTaskTools(server: McpServer) {
 
   defineTool(server,
     "delete_task",
-    "Delete a task by ID (owner only)",
+    "Delete a task by ID. Owners can delete any task; clients can delete their own backlog tasks.",
     { taskId: z.string().uuid().describe("The task ID to delete") },
     async ({ taskId }, extra) => {
       const role = (extra.authInfo?.extra as { role: UserRole })?.role;
       const userId = (extra.authInfo?.extra as { userId: string })?.userId;
-      if (role !== "owner") {
+
+      if (!userId || !role) {
         return {
           content: [
             {
               type: "text" as const,
-              text: JSON.stringify({
-                error: "Forbidden: owner role required",
-              }),
+              text: JSON.stringify({ error: "Unauthorized" }),
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      const existing = await getTaskForComparison(taskId);
+      if (!existing) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify({ error: "Task not found" }),
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      if (!canEditTask({ userId, role }, existing)) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify({ error: "Forbidden" }),
             },
           ],
           isError: true,

@@ -4,7 +4,7 @@ import { db } from "@/db";
 import { tasks, attachments, taskStatuses, taskPriorities, taskAssignees, notDeleted } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { del } from "@vercel/blob";
-import { requireAuth, requireOwner } from "@/lib/api-auth";
+import { requireAuth, canEditTask, filterClientUpdates } from "@/lib/api-auth";
 import { logTaskEvent, logTaskChanges, getTaskForComparison } from "@/lib/task-events";
 
 const updateTaskSchema = z.object({
@@ -44,7 +44,7 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { session, error } = await requireOwner();
+  const { session, error } = await requireAuth();
   if (error) return error;
 
   const { id } = await params;
@@ -64,8 +64,17 @@ export async function PATCH(
     );
   }
 
+  const oldTask = await getTaskForComparison(id);
+  if (!oldTask) {
+    return NextResponse.json({ error: "Task not found" }, { status: 404 });
+  }
+
+  if (!canEditTask(session, oldTask)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const updates = parsed.data;
-  const setValues: Record<string, unknown> = {};
+  let setValues: Record<string, unknown> = {};
   if (updates.title !== undefined) setValues.title = updates.title;
   if (updates.description !== undefined) setValues.description = updates.description;
   if (updates.status !== undefined) setValues.status = updates.status;
@@ -75,9 +84,15 @@ export async function PATCH(
   if (updates.position !== undefined) setValues.position = updates.position;
   if (updates.dueDate !== undefined) setValues.dueDate = updates.dueDate;
 
-  const oldTask = await getTaskForComparison(id);
-  if (!oldTask) {
-    return NextResponse.json({ error: "Task not found" }, { status: 404 });
+  if (session.role !== "owner") {
+    const filtered = filterClientUpdates(setValues);
+    if (!filtered) {
+      return NextResponse.json(
+        { error: "Clients can only edit title, description, priority, assignee, reviewer, and due date on their own backlog tasks" },
+        { status: 403 },
+      );
+    }
+    setValues = filtered;
   }
 
   const [task] = await db
@@ -99,10 +114,19 @@ export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { session, error } = await requireOwner();
+  const { session, error } = await requireAuth();
   if (error) return error;
 
   const { id } = await params;
+
+  const existing = await getTaskForComparison(id);
+  if (!existing) {
+    return NextResponse.json({ error: "Task not found" }, { status: 404 });
+  }
+
+  if (!canEditTask(session, existing)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   const [task] = await db
     .update(tasks)

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { verifySession, type SessionPayload } from "@/lib/auth";
 
+export { canEditTask, filterClientUpdates, CLIENT_EDITABLE_FIELDS } from "@/lib/permissions";
+
 export async function requireAuth(): Promise<
   | { session: SessionPayload; error?: never }
   | { session?: never; error: NextResponse }

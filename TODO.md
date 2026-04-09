@@ -21,7 +21,7 @@
 - [ ] Subtasks and checklists
 - [x] File attachments (Vercel Blob)
 - [x] Comments on tasks (both owner and client)
-- [ ] Task activity log / audit trail
+- [x] Task activity log / audit trail
 - [ ] Assignee field expanded to support individual team members
 - [ ] Estimated hours and time tracking
 - [ ] Recurring tasks
@@ -47,7 +47,7 @@
 
 ## Notifications
 - [ ] In-app notification system
-- [ ] Email notifications (task updates, comments, mentions)
+- [x] Email notifications (task updates, comments, activity digests)
 - [ ] Client edit notifications for owner (when client write is enabled)
 - [ ] Webhook integrations (Slack, Discord)
 

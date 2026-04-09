@@ -35,9 +35,12 @@ export interface CommentWithAuthor {
   authorRole: "owner" | "client";
 }
 
+export type { NotificationPrefs } from "@/db/schema";
+
 export interface CurrentUser {
   id: string;
   name: string;
   email: string;
   role: "owner" | "client";
+  notificationPrefs: import("@/db/schema").NotificationPrefs;
 }

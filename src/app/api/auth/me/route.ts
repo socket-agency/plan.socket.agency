@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/db";
-import { users } from "@/db/schema";
+import { users, DEFAULT_NOTIFICATION_PREFS } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
 import { requireAuth } from "@/lib/api-auth";
 import { eq, and, ne } from "drizzle-orm";
@@ -24,6 +24,8 @@ export async function GET() {
       name: user.name,
       email: user.email,
       role: user.role,
+      notificationPrefs:
+        user.notificationPrefs ?? DEFAULT_NOTIFICATION_PREFS[user.role],
     },
   });
 }
@@ -79,9 +81,17 @@ export async function PATCH(request: Request) {
         name: users.name,
         email: users.email,
         role: users.role,
+        notificationPrefs: users.notificationPrefs,
       });
 
-    return NextResponse.json({ user: updated });
+    return NextResponse.json({
+      user: {
+        ...updated,
+        notificationPrefs:
+          updated.notificationPrefs ??
+          DEFAULT_NOTIFICATION_PREFS[updated.role],
+      },
+    });
   } catch (err: unknown) {
     if (err instanceof Error && err.message.includes("unique")) {
       return NextResponse.json(

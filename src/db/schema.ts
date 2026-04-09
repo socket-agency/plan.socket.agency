@@ -14,6 +14,17 @@ import { eq } from "drizzle-orm";
 export const userRoles = ["owner", "client"] as const;
 export type UserRole = (typeof userRoles)[number];
 
+export interface NotificationPrefs {
+  emailEnabled: boolean;
+  digestIntervalHours: number | null;
+  digestHourUtc: number;
+}
+
+export const DEFAULT_NOTIFICATION_PREFS: Record<UserRole, NotificationPrefs> = {
+  owner: { emailEnabled: true, digestIntervalHours: null, digestHourUtc: 9 },
+  client: { emailEnabled: false, digestIntervalHours: 24, digestHourUtc: 9 },
+};
+
 export const taskStatuses = [
   "backlog",
   "todo",
@@ -35,6 +46,8 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   password: text("password").notNull(),
   role: text("role", { enum: userRoles }).notNull().default("client"),
+  notificationPrefs: jsonb("notification_prefs").$type<NotificationPrefs>(),
+  lastDigestSentAt: timestamp("last_digest_sent_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
@@ -114,6 +127,24 @@ export const apiKeys = pgTable("api_keys", {
     .notNull()
     .defaultNow(),
   expiresAt: timestamp("expires_at", { withTimezone: true }),
+});
+
+export const emailTypes = ["event", "digest"] as const;
+export type EmailType = (typeof emailTypes)[number];
+
+export const sentEmails = pgTable("sent_emails", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  type: text("type", { enum: emailTypes }).notNull(),
+  subject: text("subject").notNull(),
+  resendId: text("resend_id"),
+  taskId: uuid("task_id").references(() => tasks.id, { onDelete: "set null" }),
+  eventType: text("event_type"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
 export const taskEventTypes = [
@@ -200,3 +231,5 @@ export type ApiKey = typeof apiKeys.$inferSelect;
 export type NewApiKey = typeof apiKeys.$inferInsert;
 export type TaskEvent = typeof taskEvents.$inferSelect;
 export type NewTaskEvent = typeof taskEvents.$inferInsert;
+export type SentEmail = typeof sentEmails.$inferSelect;
+export type NewSentEmail = typeof sentEmails.$inferInsert;

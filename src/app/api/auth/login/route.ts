@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/db";
-import { users } from "@/db/schema";
+import { users, DEFAULT_NOTIFICATION_PREFS } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { verifyPassword, createSession } from "@/lib/auth";
 
@@ -52,6 +52,13 @@ export async function POST(request: Request) {
   await createSession(user);
 
   return NextResponse.json({
-    user: { id: user.id, name: user.name, email: user.email, role: user.role },
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      notificationPrefs:
+        user.notificationPrefs ?? DEFAULT_NOTIFICATION_PREFS[user.role],
+    },
   });
 }

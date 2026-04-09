@@ -1,9 +1,11 @@
+import { after } from "next/server";
 import { db } from "@/db";
 import { taskEvents, tasks, notDeleted } from "@/db/schema";
 import type { Task, TaskEventType } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
+import { sendNotificationForEvent } from "@/lib/notifications";
 
-interface LogEventParams {
+export interface LogEventParams {
   taskId: string;
   actorId: string | null;
   type: TaskEventType;
@@ -21,6 +23,13 @@ export async function logTaskEvent(params: LogEventParams) {
     newValue: params.newValue ?? null,
     metadata: params.metadata ?? null,
   });
+
+  try {
+    after(() => sendNotificationForEvent(params));
+  } catch {
+    // after() unavailable outside request context (seed scripts, tests)
+    sendNotificationForEvent(params).catch(() => {});
+  }
 }
 
 const FIELD_EVENT_MAP: Record<string, TaskEventType> = {

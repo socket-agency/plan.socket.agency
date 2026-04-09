@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -13,13 +13,14 @@ import {
   closestCorners,
 } from "@dnd-kit/core";
 import { useTasks } from "@/hooks/use-tasks";
-import type { Task, TaskStatus } from "@/lib/types";
+import type { Task, TaskStatus, TaskAssignee, TaskPriority } from "@/lib/types";
 import { taskStatuses } from "@/lib/types";
 import { EmberColumn } from "./column";
 import { EmberTaskCard } from "./task-card";
 import { EmberTaskDetailModal } from "./task-detail-modal";
 import { EmberAiChat } from "./ai-chat";
 import { Plus, Sparkles } from "lucide-react";
+import { BoardFilters } from "./board-filters";
 
 export function EmberBoard({ initialTaskId }: { initialTaskId?: string }) {
   const { tasks, loading, reorder, fetchTasks, createTask } = useTasks();
@@ -36,6 +37,22 @@ export function EmberBoard({ initialTaskId }: { initialTaskId?: string }) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overColumnId, setOverColumnId] = useState<string | null>(null);
 
+  // Filter state
+  const [filterAssignees, setFilterAssignees] = useState<TaskAssignee[]>([]);
+  const [filterPriorities, setFilterPriorities] = useState<TaskPriority[]>([]);
+
+  const filteredTasks = useMemo(() => {
+    return tasks.filter((t) => {
+      if (filterAssignees.length > 0 && !filterAssignees.includes(t.assignee))
+        return false;
+      if (filterPriorities.length > 0 && !filterPriorities.includes(t.priority))
+        return false;
+      return true;
+    });
+  }, [tasks, filterAssignees, filterPriorities]);
+
+  const hasFilters = filterAssignees.length > 0 || filterPriorities.length > 0;
+
   // Create task state
   const [showCreateInput, setShowCreateInput] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState("");
@@ -47,10 +64,10 @@ export function EmberBoard({ initialTaskId }: { initialTaskId?: string }) {
 
   const columnTasks = useCallback(
     (status: TaskStatus) =>
-      tasks
+      filteredTasks
         .filter((t) => t.status === status)
         .sort((a, b) => a.position - b.position),
-    [tasks]
+    [filteredTasks]
   );
 
   const activeTask = activeId ? tasks.find((t) => t.id === activeId) : null;
@@ -147,7 +164,9 @@ export function EmberBoard({ initialTaskId }: { initialTaskId?: string }) {
         <div className="flex items-center gap-4">
           <h1 className="text-lg font-semibold text-[#F7F7F8]">Board</h1>
           <span className="rounded-full bg-[#252529] px-2.5 py-0.5 font-mono text-xs text-[#9494A0]">
-            {tasks.length} tasks
+            {hasFilters
+              ? `${filteredTasks.length} of ${tasks.length} tasks`
+              : `${tasks.length} tasks`}
           </span>
         </div>
 
@@ -209,6 +228,14 @@ export function EmberBoard({ initialTaskId }: { initialTaskId?: string }) {
           </button>
         </div>
       </div>
+
+      {/* Filters */}
+      <BoardFilters
+        assignees={filterAssignees}
+        onAssigneesChange={setFilterAssignees}
+        priorities={filterPriorities}
+        onPrioritiesChange={setFilterPriorities}
+      />
 
       {/* Board area */}
       <div className="flex-1 overflow-x-auto p-6">

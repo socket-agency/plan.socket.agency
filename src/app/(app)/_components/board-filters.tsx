@@ -35,6 +35,8 @@ function capitalize(s: string) {
 interface BoardFiltersProps {
   assignees: TaskAssignee[];
   onAssigneesChange: (value: TaskAssignee[]) => void;
+  reviewers: TaskAssignee[];
+  onReviewersChange: (value: TaskAssignee[]) => void;
   priorities: TaskPriority[];
   onPrioritiesChange: (value: TaskPriority[]) => void;
 }
@@ -48,10 +50,12 @@ function toggle<T>(arr: T[], value: T): T[] {
 export function BoardFilters({
   assignees,
   onAssigneesChange,
+  reviewers,
+  onReviewersChange,
   priorities,
   onPrioritiesChange,
 }: BoardFiltersProps) {
-  const hasFilters = assignees.length > 0 || priorities.length > 0;
+  const hasFilters = assignees.length > 0 || reviewers.length > 0 || priorities.length > 0;
 
   return (
     <div className="flex items-center gap-2 border-b border-white/[0.06] px-6 py-2">
@@ -74,6 +78,37 @@ export function BoardFilters({
                 key={a}
                 checked={assignees.includes(a)}
                 onCheckedChange={() => onAssigneesChange(toggle(assignees, a))}
+              >
+                <span
+                  className="inline-block h-2 w-2 rounded-full"
+                  style={{ backgroundColor: assigneeColors[a] }}
+                />
+                {capitalize(a)}
+              </DropdownMenuCheckboxItem>
+            ))}
+          </DropdownMenuGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      {/* Reviewer filter */}
+      <DropdownMenu>
+        <DropdownMenuTrigger className="flex items-center gap-1.5 rounded-lg border border-white/[0.06] bg-[#131316] px-3 py-1.5 text-xs text-[#9494A0] transition-colors hover:border-white/[0.12] hover:text-[#F7F7F8]">
+          Reviewer
+          {reviewers.length > 0 && (
+            <span className="rounded-full bg-[#D4453A]/20 px-1.5 text-[10px] font-medium text-[#D4453A]">
+              {reviewers.length}
+            </span>
+          )}
+          <ChevronDown size={12} />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent>
+          <DropdownMenuGroup>
+            <DropdownMenuLabel>Reviewer</DropdownMenuLabel>
+            {taskAssignees.map((a) => (
+              <DropdownMenuCheckboxItem
+                key={a}
+                checked={reviewers.includes(a)}
+                onCheckedChange={() => onReviewersChange(toggle(reviewers, a))}
               >
                 <span
                   className="inline-block h-2 w-2 rounded-full"
@@ -122,6 +157,7 @@ export function BoardFilters({
         <button
           onClick={() => {
             onAssigneesChange([]);
+            onReviewersChange([]);
             onPrioritiesChange([]);
           }}
           className="flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs text-[#9494A0] transition-colors hover:text-[#F7F7F8]"

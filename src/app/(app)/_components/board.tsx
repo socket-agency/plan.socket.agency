@@ -39,19 +39,22 @@ export function EmberBoard({ initialTaskId }: { initialTaskId?: string }) {
 
   // Filter state
   const [filterAssignees, setFilterAssignees] = useState<TaskAssignee[]>([]);
+  const [filterReviewers, setFilterReviewers] = useState<TaskAssignee[]>([]);
   const [filterPriorities, setFilterPriorities] = useState<TaskPriority[]>([]);
 
   const filteredTasks = useMemo(() => {
     return tasks.filter((t) => {
       if (filterAssignees.length > 0 && !filterAssignees.includes(t.assignee))
         return false;
+      if (filterReviewers.length > 0 && (!t.reviewer || !filterReviewers.includes(t.reviewer)))
+        return false;
       if (filterPriorities.length > 0 && !filterPriorities.includes(t.priority))
         return false;
       return true;
     });
-  }, [tasks, filterAssignees, filterPriorities]);
+  }, [tasks, filterAssignees, filterReviewers, filterPriorities]);
 
-  const hasFilters = filterAssignees.length > 0 || filterPriorities.length > 0;
+  const hasFilters = filterAssignees.length > 0 || filterReviewers.length > 0 || filterPriorities.length > 0;
 
   // Create task state
   const [showCreateInput, setShowCreateInput] = useState(false);
@@ -233,6 +236,8 @@ export function EmberBoard({ initialTaskId }: { initialTaskId?: string }) {
       <BoardFilters
         assignees={filterAssignees}
         onAssigneesChange={setFilterAssignees}
+        reviewers={filterReviewers}
+        onReviewersChange={setFilterReviewers}
         priorities={filterPriorities}
         onPrioritiesChange={setFilterPriorities}
       />

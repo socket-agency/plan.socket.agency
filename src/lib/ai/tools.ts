@@ -24,6 +24,10 @@ function readTools() {
           .enum(["agency", "client"])
           .optional()
           .describe("Filter by assignee"),
+        reviewer: z
+          .enum(["agency", "client"])
+          .optional()
+          .describe("Filter by reviewer"),
       }),
       execute: async (params) => {
         let allTasks = await db
@@ -38,6 +42,8 @@ function readTools() {
           allTasks = allTasks.filter((t) => t.priority === params.priority);
         if (params.assignee)
           allTasks = allTasks.filter((t) => t.assignee === params.assignee);
+        if (params.reviewer)
+          allTasks = allTasks.filter((t) => t.reviewer === params.reviewer);
 
         return allTasks.map((t) => ({
           id: t.id,
@@ -45,6 +51,7 @@ function readTools() {
           status: t.status,
           priority: t.priority,
           assignee: t.assignee,
+          reviewer: t.reviewer,
           dueDate: t.dueDate,
         }));
       },
@@ -76,12 +83,14 @@ function readTools() {
         const byStatus: Record<string, number> = {};
         const byPriority: Record<string, number> = {};
         const byAssignee: Record<string, number> = {};
+        const byReviewer: Record<string, number> = {};
         let overdue = 0;
 
         for (const t of allTasks) {
           byStatus[t.status] = (byStatus[t.status] || 0) + 1;
           byPriority[t.priority] = (byPriority[t.priority] || 0) + 1;
           byAssignee[t.assignee] = (byAssignee[t.assignee] || 0) + 1;
+          if (t.reviewer) byReviewer[t.reviewer] = (byReviewer[t.reviewer] || 0) + 1;
           if (t.dueDate && t.dueDate < today && t.status !== "done") {
             overdue++;
           }
@@ -92,6 +101,7 @@ function readTools() {
           byStatus,
           byPriority,
           byAssignee,
+          byReviewer,
           overdue,
           completionRate: allTasks.length
             ? Math.round(((byStatus["done"] || 0) / allTasks.length) * 100)
@@ -119,6 +129,7 @@ function writeTools(userId: string) {
           .enum(["low", "medium", "high", "urgent"])
           .default("medium"),
         assignee: z.enum(["agency", "client"]).default("agency"),
+        reviewer: z.enum(["agency", "client"]).nullish().describe("Task reviewer (optional)"),
         dueDate: z
           .string()
           .optional()
@@ -136,6 +147,7 @@ function writeTools(userId: string) {
             status: params.status as "backlog",
             priority: params.priority as "medium",
             assignee: params.assignee as "agency",
+            reviewer: params.reviewer ?? null,
             position: maxPos + 1000,
             dueDate: params.dueDate || null,
             createdBy: userId,
@@ -146,7 +158,7 @@ function writeTools(userId: string) {
           taskId: task.id,
           actorId: userId,
           type: "task_created",
-          newValue: { status: task.status, priority: task.priority, assignee: task.assignee },
+          newValue: { status: task.status, priority: task.priority, assignee: task.assignee, reviewer: task.reviewer },
         });
 
         return { created: { id: task.id, title: task.title } };
@@ -164,6 +176,7 @@ function writeTools(userId: string) {
           .optional(),
         priority: z.enum(["low", "medium", "high", "urgent"]).optional(),
         assignee: z.enum(["agency", "client"]).optional(),
+        reviewer: z.enum(["agency", "client"]).nullish().describe("Reviewer, or null to clear"),
         dueDate: z
           .string()
           .optional()
@@ -180,6 +193,7 @@ function writeTools(userId: string) {
         if (params.status !== undefined) setValues.status = params.status;
         if (params.priority !== undefined) setValues.priority = params.priority;
         if (params.assignee !== undefined) setValues.assignee = params.assignee;
+        if (params.reviewer !== undefined) setValues.reviewer = params.reviewer;
         if (params.dueDate !== undefined)
           setValues.dueDate = params.dueDate || null;
 
@@ -260,6 +274,7 @@ function writeTools(userId: string) {
             title: t.title,
             status: t.status,
             assignee: t.assignee,
+            reviewer: t.reviewer,
           })),
           overdue: overdue.map((t) => ({
             title: t.title,
@@ -273,6 +288,7 @@ function writeTools(userId: string) {
               title: t.title,
               dueDate: t.dueDate,
               assignee: t.assignee,
+              reviewer: t.reviewer,
             })),
         };
       },
@@ -294,6 +310,7 @@ function clientCreateTool(userId: string) {
           .enum(["low", "medium", "high", "urgent"])
           .default("medium"),
         assignee: z.enum(["agency", "client"]).default("client"),
+        reviewer: z.enum(["agency", "client"]).nullish().describe("Task reviewer (optional)"),
         dueDate: z
           .string()
           .optional()
@@ -311,6 +328,7 @@ function clientCreateTool(userId: string) {
             status: "backlog",
             priority: params.priority as "medium",
             assignee: params.assignee as "agency",
+            reviewer: params.reviewer ?? null,
             position: maxPos + 1000,
             dueDate: params.dueDate || null,
             createdBy: userId,
@@ -321,7 +339,7 @@ function clientCreateTool(userId: string) {
           taskId: task.id,
           actorId: userId,
           type: "task_created",
-          newValue: { status: "backlog", priority: task.priority, assignee: task.assignee },
+          newValue: { status: "backlog", priority: task.priority, assignee: task.assignee, reviewer: task.reviewer },
         });
 
         return { created: { id: task.id, title: task.title, status: "backlog" } };

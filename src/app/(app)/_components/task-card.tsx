@@ -85,6 +85,19 @@ export function EmberTaskCard({
           {assigneeInitial}
         </div>
 
+        {/* Reviewer avatar */}
+        {task.reviewer && (
+          <div
+            className={`flex h-5 w-5 items-center justify-center rounded-full border border-dashed text-[10px] font-medium ${
+              task.reviewer === "agency"
+                ? "border-[#D4453A]/40 text-[#D4453A]"
+                : "border-[#F0A868]/40 text-[#F0A868]"
+            }`}
+          >
+            {task.reviewer === "agency" ? "A" : "C"}
+          </div>
+        )}
+
         {/* Spacer */}
         <div className="flex-1" />
 

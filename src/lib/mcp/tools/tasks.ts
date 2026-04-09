@@ -28,9 +28,13 @@ export function registerTaskTools(server: McpServer) {
         .enum(taskAssignees)
         .optional()
         .describe("Filter by assignee"),
+      reviewer: z
+        .enum(taskAssignees)
+        .optional()
+        .describe("Filter by reviewer"),
       search: z.string().optional().describe("Search in title and description"),
     },
-    async ({ status, priority, assignee, search }) => {
+    async ({ status, priority, assignee, reviewer, search }) => {
       let allTasks = await db
         .select()
         .from(tasks)
@@ -40,6 +44,7 @@ export function registerTaskTools(server: McpServer) {
       if (status) allTasks = allTasks.filter((t) => t.status === status);
       if (priority) allTasks = allTasks.filter((t) => t.priority === priority);
       if (assignee) allTasks = allTasks.filter((t) => t.assignee === assignee);
+      if (reviewer) allTasks = allTasks.filter((t) => t.reviewer === reviewer);
       if (search) {
         const q = search.toLowerCase();
         allTasks = allTasks.filter(
@@ -55,6 +60,7 @@ export function registerTaskTools(server: McpServer) {
         status: t.status,
         priority: t.priority,
         assignee: t.assignee,
+        reviewer: t.reviewer,
         dueDate: t.dueDate,
       }));
 
@@ -125,10 +131,11 @@ export function registerTaskTools(server: McpServer) {
       status: z.enum(taskStatuses).default("backlog"),
       priority: z.enum(taskPriorities).default("medium"),
       assignee: z.enum(taskAssignees).default("agency"),
+      reviewer: z.enum(taskAssignees).nullish().describe("Task reviewer (optional)"),
       dueDate: z.string().optional().describe("Due date in YYYY-MM-DD format"),
     },
     async (
-      { title, description, status, priority, assignee, dueDate },
+      { title, description, status, priority, assignee, reviewer, dueDate },
       extra
     ) => {
       const role = (extra.authInfo?.extra as { role: UserRole })?.role;
@@ -162,6 +169,7 @@ export function registerTaskTools(server: McpServer) {
           status: effectiveStatus,
           priority,
           assignee,
+          reviewer: reviewer ?? null,
           position: maxPos + 1000,
           dueDate: dueDate || null,
           createdBy: userId,
@@ -172,7 +180,7 @@ export function registerTaskTools(server: McpServer) {
         taskId: task.id,
         actorId: userId,
         type: "task_created",
-        newValue: { status: task.status, priority: task.priority, assignee: task.assignee },
+        newValue: { status: task.status, priority: task.priority, assignee: task.assignee, reviewer: task.reviewer },
       });
 
       return {
@@ -198,6 +206,7 @@ export function registerTaskTools(server: McpServer) {
       status: z.enum(taskStatuses).optional(),
       priority: z.enum(taskPriorities).optional(),
       assignee: z.enum(taskAssignees).optional(),
+      reviewer: z.enum(taskAssignees).nullish().describe("Reviewer, or null to clear"),
       dueDate: z.string().optional().describe("YYYY-MM-DD or empty to clear"),
     },
     async ({ taskId, ...params }, extra) => {
@@ -237,6 +246,7 @@ export function registerTaskTools(server: McpServer) {
       if (params.status !== undefined) setValues.status = params.status;
       if (params.priority !== undefined) setValues.priority = params.priority;
       if (params.assignee !== undefined) setValues.assignee = params.assignee;
+      if (params.reviewer !== undefined) setValues.reviewer = params.reviewer;
       if (params.dueDate !== undefined)
         setValues.dueDate = params.dueDate || null;
 

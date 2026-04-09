@@ -36,6 +36,7 @@ const FIELD_EVENT_MAP: Record<string, TaskEventType> = {
   status: "status_changed",
   priority: "priority_changed",
   assignee: "assignee_changed",
+  reviewer: "reviewer_changed",
   dueDate: "due_date_changed",
   title: "title_changed",
   description: "description_changed",

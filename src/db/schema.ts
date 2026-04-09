@@ -64,6 +64,7 @@ export const tasks = pgTable("tasks", {
   assignee: text("assignee", { enum: taskAssignees })
     .notNull()
     .default("agency"),
+  reviewer: text("reviewer", { enum: taskAssignees }),
   position: integer("position").notNull().default(0),
   dueDate: date("due_date"),
   createdBy: uuid("created_by").references(() => users.id),
@@ -152,6 +153,7 @@ export const taskEventTypes = [
   "status_changed",
   "priority_changed",
   "assignee_changed",
+  "reviewer_changed",
   "due_date_changed",
   "title_changed",
   "description_changed",

@@ -14,12 +14,14 @@ export function registerSummaryTools(server: McpServer) {
       const byStatus: Record<string, number> = {};
       const byPriority: Record<string, number> = {};
       const byAssignee: Record<string, number> = {};
+      const byReviewer: Record<string, number> = {};
       let overdue = 0;
 
       for (const t of allTasks) {
         byStatus[t.status] = (byStatus[t.status] || 0) + 1;
         byPriority[t.priority] = (byPriority[t.priority] || 0) + 1;
         byAssignee[t.assignee] = (byAssignee[t.assignee] || 0) + 1;
+        if (t.reviewer) byReviewer[t.reviewer] = (byReviewer[t.reviewer] || 0) + 1;
         if (t.dueDate && t.dueDate < today && t.status !== "done") {
           overdue++;
         }
@@ -30,6 +32,7 @@ export function registerSummaryTools(server: McpServer) {
         byStatus,
         byPriority,
         byAssignee,
+        byReviewer,
         overdue,
         completionRate: allTasks.length
           ? Math.round(((byStatus["done"] || 0) / allTasks.length) * 100)

@@ -13,6 +13,7 @@ const updateTaskSchema = z.object({
   status: z.enum(taskStatuses).optional(),
   priority: z.enum(taskPriorities).optional(),
   assignee: z.enum(taskAssignees).optional(),
+  reviewer: z.enum(taskAssignees).nullish(),
   position: z.number().int().optional(),
   dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Must be YYYY-MM-DD").nullish(),
 });
@@ -70,6 +71,7 @@ export async function PATCH(
   if (updates.status !== undefined) setValues.status = updates.status;
   if (updates.priority !== undefined) setValues.priority = updates.priority;
   if (updates.assignee !== undefined) setValues.assignee = updates.assignee;
+  if (updates.reviewer !== undefined) setValues.reviewer = updates.reviewer;
   if (updates.position !== undefined) setValues.position = updates.position;
   if (updates.dueDate !== undefined) setValues.dueDate = updates.dueDate;
 

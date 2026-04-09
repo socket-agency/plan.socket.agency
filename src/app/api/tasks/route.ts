@@ -12,6 +12,7 @@ const createTaskSchema = z.object({
   status: z.enum(taskStatuses).default("backlog"),
   priority: z.enum(taskPriorities).default("medium"),
   assignee: z.enum(taskAssignees).default("agency"),
+  reviewer: z.enum(taskAssignees).nullish(),
   dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Must be YYYY-MM-DD").nullish(),
 });
 
@@ -44,7 +45,7 @@ export async function POST(request: Request) {
   }
 
   const isClient = session.role === "client";
-  const { title, description, priority, assignee, dueDate } = parsed.data;
+  const { title, description, priority, assignee, reviewer, dueDate } = parsed.data;
   const status = isClient ? "backlog" as const : parsed.data.status;
 
   const allTasks = await db
@@ -64,6 +65,7 @@ export async function POST(request: Request) {
       status,
       priority,
       assignee,
+      reviewer: reviewer ?? null,
       position: maxPosition + 1000,
       dueDate: dueDate || null,
       createdBy: session.userId,
@@ -74,7 +76,7 @@ export async function POST(request: Request) {
     taskId: task.id,
     actorId: session.userId,
     type: "task_created",
-    newValue: { status: task.status, priority: task.priority, assignee: task.assignee },
+    newValue: { status: task.status, priority: task.priority, assignee: task.assignee, reviewer: task.reviewer },
   });
 
   return NextResponse.json(task, { status: 201 });

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { Calendar, User, Flag, Layers, Trash2, Link } from "lucide-react";
+import { Calendar, User, UserCheck, Flag, Layers, Trash2, Link } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -67,6 +67,12 @@ export function EmberTaskDetailModal({
 
   const handleAssigneeChange = async (assignee: TaskAssignee) => {
     await updateTask({ assignee });
+    setActivityKey((k) => k + 1);
+    onUpdate();
+  };
+
+  const handleReviewerChange = async (reviewer: TaskAssignee | "") => {
+    await updateTask({ reviewer: reviewer || null });
     setActivityKey((k) => k + 1);
     onUpdate();
   };
@@ -161,6 +167,26 @@ export function EmberTaskDetailModal({
                   }
                   className="cursor-pointer bg-transparent text-xs font-medium text-[#F7F7F8] outline-none"
                 >
+                  {taskAssignees.map((a) => (
+                    <option key={a} value={a} className="bg-[#1C1C21]">
+                      {a === "agency" ? "Agency" : "Client"}
+                    </option>
+                  ))}
+                </select>
+              </MetaChip>
+
+              {/* Reviewer */}
+              <MetaChip icon={<UserCheck size={13} />} label="Reviewer">
+                <select
+                  value={task.reviewer ?? ""}
+                  onChange={(e) =>
+                    handleReviewerChange(e.target.value as TaskAssignee | "")
+                  }
+                  className="cursor-pointer bg-transparent text-xs font-medium text-[#F7F7F8] outline-none"
+                >
+                  <option value="" className="bg-[#1C1C21]">
+                    None
+                  </option>
                   {taskAssignees.map((a) => (
                     <option key={a} value={a} className="bg-[#1C1C21]">
                       {a === "agency" ? "Agency" : "Client"}

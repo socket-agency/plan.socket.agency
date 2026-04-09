@@ -6,6 +6,7 @@ import {
   ArrowRight,
   Flag,
   User,
+  UserCheck,
   Calendar,
   Pencil,
   FileText,
@@ -66,6 +67,7 @@ const EVENT_ICONS: Record<TaskEventType, typeof Plus> = {
   status_changed: ArrowRight,
   priority_changed: Flag,
   assignee_changed: User,
+  reviewer_changed: UserCheck,
   due_date_changed: Calendar,
   title_changed: Pencil,
   description_changed: FileText,
@@ -156,6 +158,29 @@ function EventDescription({ event }: { event: TaskEventWithActor }) {
             />
             <span className="font-medium" style={{ color: aColor }}>
               {assigneeLabels[newAssignee] ?? newAssignee}
+            </span>
+          </span>
+        </>
+      );
+    }
+
+    case "reviewer_changed": {
+      const newReviewer = event.newValue as string | null;
+      if (!newReviewer) {
+        return <><span className="font-medium text-[#F7F7F8]">{actor}</span> removed the reviewer</>;
+      }
+      const rColor = assigneeColors[newReviewer] ?? "#9494A0";
+      return (
+        <>
+          <span className="font-medium text-[#F7F7F8]">{actor}</span>
+          {" set reviewer to "}
+          <span className="inline-flex items-center gap-1">
+            <span
+              className="inline-block h-1.5 w-1.5 rounded-full"
+              style={{ backgroundColor: rColor }}
+            />
+            <span className="font-medium" style={{ color: rColor }}>
+              {assigneeLabels[newReviewer] ?? newReviewer}
             </span>
           </span>
         </>

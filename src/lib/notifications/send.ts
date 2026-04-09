@@ -51,6 +51,7 @@ const CLIENT_NOTIFIABLE_EVENTS: TaskEventType[] = [
   "status_changed",
   "comment_added",
   "assignee_changed",
+  "reviewer_changed",
   "task_created",
 ];
 
@@ -89,6 +90,7 @@ const EVENT_DESCRIPTIONS: Record<
     `attached ${(n as { filename?: string })?.filename ?? "a file"}`,
   status_changed: (o, n) => `changed status from ${o} to ${n}`,
   assignee_changed: (o, n) => `changed assignee from ${o} to ${n}`,
+  reviewer_changed: (_o, n) => n ? `set reviewer to ${n}` : "removed the reviewer",
 };
 
 function buildActionDescription(
@@ -110,6 +112,7 @@ function buildSubject(
     attachment_added: "New attachment on",
     status_changed: "Task updated",
     assignee_changed: "Task assigned",
+    reviewer_changed: "Reviewer updated",
   };
   const prefix = prefixes[eventType] ?? "Update on";
   return `${prefix}: ${taskTitle}`;

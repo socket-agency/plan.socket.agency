@@ -27,7 +27,7 @@ export function useTask(taskId: string) {
   }, [fetchTask]);
 
   const updateTask = useCallback(
-    async (updates: Partial<Pick<Task, "title" | "description" | "status" | "priority" | "assignee" | "dueDate">>) => {
+    async (updates: Partial<Pick<Task, "title" | "description" | "status" | "priority" | "assignee" | "reviewer" | "dueDate">>) => {
       const res = await fetch(`/api/tasks/${taskId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },

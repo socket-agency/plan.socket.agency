@@ -91,5 +91,19 @@ export async function POST(
     metadata: { commentId: comment.id },
   });
 
-  return NextResponse.json(comment, { status: 201 });
+  // Re-query with author join so the response matches CommentWithAuthor shape
+  const [commentWithAuthor] = await db
+    .select({
+      id: comments.id,
+      body: comments.body,
+      createdAt: comments.createdAt,
+      authorId: comments.authorId,
+      authorName: users.name,
+      authorRole: users.role,
+    })
+    .from(comments)
+    .innerJoin(users, eq(comments.authorId, users.id))
+    .where(eq(comments.id, comment.id));
+
+  return NextResponse.json(commentWithAuthor, { status: 201 });
 }

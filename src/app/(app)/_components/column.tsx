@@ -90,7 +90,7 @@ export function EmberColumn({
       {/* Cards */}
       <div
         ref={setNodeRef}
-        className={`flex flex-1 flex-col gap-2.5 overflow-y-auto rounded-lg p-1 transition-colors ${
+        className={`flex flex-1 flex-col gap-2.5 overflow-y-auto rounded-lg p-1 min-h-[120px] transition-colors ${
           isDropTarget ? "bg-[rgba(212,69,58,0.04)]" : ""
         }`}
       >

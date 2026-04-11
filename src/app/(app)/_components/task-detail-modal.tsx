@@ -17,21 +17,7 @@ import { TaskActivity } from "./task-activity";
 import { Markdown } from "@/components/ui/markdown";
 import type { TaskStatus, TaskPriority, TaskAssignee } from "@/lib/types";
 import { taskStatuses, taskPriorities, taskAssignees } from "@/lib/types";
-
-const statusLabels: Record<TaskStatus, string> = {
-  backlog: "Backlog",
-  todo: "To Do",
-  in_progress: "In Progress",
-  in_review: "In Review",
-  done: "Done",
-};
-
-const priorityLabels: Record<string, string> = {
-  low: "Low",
-  medium: "Medium",
-  high: "High",
-  urgent: "Urgent",
-};
+import { statusLabels, priorityLabels } from "@/lib/task-config";
 
 export function EmberTaskDetailModal({
   taskId,

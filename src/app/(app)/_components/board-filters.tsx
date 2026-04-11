@@ -6,6 +6,7 @@ import {
   type TaskAssignee,
   type TaskPriority,
 } from "@/lib/types";
+import { priorityColors, assigneeColors } from "@/lib/task-config";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -15,18 +16,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ChevronDown, X } from "lucide-react";
-
-const priorityColors: Record<TaskPriority, string> = {
-  low: "#55555F",
-  medium: "#9494A0",
-  high: "#D4453A",
-  urgent: "#FF4444",
-};
-
-const assigneeColors: Record<TaskAssignee, string> = {
-  agency: "#D4453A",
-  client: "#F0A868",
-};
 
 function capitalize(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1);

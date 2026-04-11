@@ -1,15 +1,9 @@
 "use client";
 
 import type { Task } from "@/lib/types";
+import { priorityColors } from "@/lib/task-config";
 
-const priorityBorderColors: Record<string, string> = {
-  low: "#55555F",
-  medium: "#9494A0",
-  high: "#D4453A",
-  urgent: "#FF4444",
-};
-
-const priorityLabels: Record<string, string> = {
+const priorityLabelsShort: Record<string, string> = {
   low: "Low",
   medium: "Med",
   high: "High",
@@ -53,7 +47,7 @@ export function EmberTaskCard({
       } ${task.status === "done" ? "opacity-60" : ""}`}
       style={{
         borderLeftWidth: "4px",
-        borderLeftColor: priorityBorderColors[task.priority],
+        borderLeftColor: priorityColors[task.priority],
       }}
     >
       {/* Title */}
@@ -67,11 +61,11 @@ export function EmberTaskCard({
         <span
           className="rounded px-1.5 py-0.5 font-mono text-[10px] font-medium"
           style={{
-            color: priorityBorderColors[task.priority],
-            backgroundColor: `${priorityBorderColors[task.priority]}15`,
+            color: priorityColors[task.priority],
+            backgroundColor: `${priorityColors[task.priority]}15`,
           }}
         >
-          {priorityLabels[task.priority]}
+          {priorityLabelsShort[task.priority]}
         </span>
 
         {/* Assignee avatar */}

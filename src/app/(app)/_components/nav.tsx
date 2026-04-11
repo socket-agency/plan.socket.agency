@@ -1,26 +1,42 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { LayoutGrid, Users, Settings, LogOut, KeyRound } from "lucide-react";
+import {
+  LayoutGrid,
+  Users,
+  Settings,
+  LogOut,
+  KeyRound,
+  BarChart3,
+} from "lucide-react";
 
 const navItems = [
   { href: "/", icon: LayoutGrid, label: "Board", exact: true },
-  { href: "/users", icon: Users, label: "Users" },
-  { href: "/api-keys", icon: KeyRound, label: "API Keys" },
+  { href: "/dashboard", icon: BarChart3, label: "Dashboard", ownerOnly: true },
+  { href: "/users", icon: Users, label: "Users", ownerOnly: true },
+  { href: "/api-keys", icon: KeyRound, label: "API Keys", ownerOnly: true },
   { href: "/settings", icon: Settings, label: "Settings" },
 ];
 
 export function EmberNav({
   userName,
   userRole,
+  progressDone,
+  progressTotal,
 }: {
   userName: string;
   userRole: string;
+  progressDone: number;
+  progressTotal: number;
 }) {
   const pathname = usePathname();
 
   const isActive = (href: string, exact?: boolean) =>
     exact ? pathname === href : pathname.startsWith(href);
+
+  const visibleItems = navItems.filter(
+    (item) => !("ownerOnly" in item && item.ownerOnly) || userRole === "owner",
+  );
 
   const initials = userName
     .split(" ")
@@ -28,6 +44,9 @@ export function EmberNav({
     .join("")
     .toUpperCase()
     .slice(0, 2);
+
+  const progressPct =
+    progressTotal > 0 ? Math.round((progressDone / progressTotal) * 100) : 0;
 
   return (
     <nav className="bg-noise relative flex h-full w-[240px] shrink-0 flex-col border-r border-white/[0.06] bg-[#131316]">
@@ -51,7 +70,7 @@ export function EmberNav({
 
         {/* Navigation links */}
         <div className="flex flex-1 flex-col gap-1 px-3 pt-2">
-          {navItems.map((item) => {
+          {visibleItems.map((item) => {
             const active = isActive(item.href, item.exact);
             return (
               <a
@@ -68,6 +87,30 @@ export function EmberNav({
               </a>
             );
           })}
+        </div>
+
+        {/* Progress bar */}
+        <div className="px-5 pb-3">
+          <div className="flex items-baseline justify-between text-xs">
+            <span className="font-medium text-[#9494A0]">Progress</span>
+            {progressTotal > 0 ? (
+              <span className="tabular-nums text-[#55555F]">
+                {progressDone}/{progressTotal}{" "}
+                <span className="text-[#9494A0]">{progressPct}%</span>
+              </span>
+            ) : (
+              <span className="text-[#55555F]">No tasks yet</span>
+            )}
+          </div>
+          <div className="mt-2 h-1 overflow-hidden rounded-full bg-[#252529]">
+            <div
+              className="h-1 rounded-full transition-all duration-500"
+              style={{
+                width: `${progressPct}%`,
+                background: "linear-gradient(135deg, #D4453A, #F0A868)",
+              }}
+            />
+          </div>
         </div>
 
         {/* User section at bottom */}

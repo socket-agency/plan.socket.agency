@@ -23,6 +23,7 @@
 - [x] Comments on tasks (both owner and client)
 - [x] Task activity log / audit trail
 - [ ] Assignee field expanded to support individual team members
+- [ ] Task difficulty/points field (for weighted progress tracking — currently each task = 1 point)
 - [ ] Estimated hours and time tracking
 - [ ] Recurring tasks
 - [ ] Task templates
@@ -34,6 +35,7 @@
 - [ ] Bulk actions (multi-select tasks, batch move/delete)
 - [ ] Keyboard shortcuts
 - [ ] Mobile-responsive improvements
+- [ ] Dashboard chart library evolution — add shadcn/ui charts (Recharts) for time-series, pie, and advanced visualizations when needed (currently pure CSS)
 - [ ] Dark/light mode toggle (currently dark-only)
 - [ ] Customizable kanban columns (owner-defined statuses)
 
@@ -52,6 +54,7 @@
 - [ ] Webhook integrations (Slack, Discord)
 
 ## Performance & Infrastructure
+- [ ] Upgrade Vercel to Pro plan — Hobby limits cron jobs to daily; digest cron was downgraded from hourly to daily (`0 9 * * *`) as a workaround
 - [ ] Database connection pooling
 - [ ] API response caching (SWR / React Query)
 - [ ] Optimistic UI updates for drag-and-drop

@@ -16,47 +16,15 @@ import {
 import { useTaskEvents } from "@/hooks/use-task-events";
 import { useComments } from "@/hooks/use-comments";
 import { Markdown } from "@/components/ui/markdown";
-import type { TaskEventWithActor, CommentWithAuthor, TaskEventType } from "@/lib/types";
-
-const statusLabels: Record<string, string> = {
-  backlog: "Backlog",
-  todo: "To Do",
-  in_progress: "In Progress",
-  in_review: "In Review",
-  done: "Done",
-};
-
-const statusColors: Record<string, string> = {
-  backlog: "#55555F",
-  todo: "#9494A0",
-  in_progress: "#3B82F6",
-  in_review: "#F0A868",
-  done: "#34D399",
-};
-
-const priorityLabels: Record<string, string> = {
-  low: "Low",
-  medium: "Medium",
-  high: "High",
-  urgent: "Urgent",
-};
-
-const priorityColors: Record<string, string> = {
-  low: "#9494A0",
-  medium: "#3B82F6",
-  high: "#F0A868",
-  urgent: "#D4453A",
-};
-
-const assigneeLabels: Record<string, string> = {
-  agency: "Agency",
-  client: "Client",
-};
-
-const assigneeColors: Record<string, string> = {
-  agency: "#D4453A",
-  client: "#F0A868",
-};
+import type { TaskEventWithActor, CommentWithAuthor, TaskEventType, TaskStatus, TaskPriority, TaskAssignee } from "@/lib/types";
+import {
+  statusLabels,
+  statusColors,
+  priorityLabels,
+  priorityColors,
+  assigneeLabels,
+  assigneeColors,
+} from "@/lib/task-config";
 
 type TimelineItem =
   | { kind: "event"; data: TaskEventWithActor }
@@ -105,7 +73,7 @@ function EventDescription({ event }: { event: TaskEventWithActor }) {
       return <><span className="font-medium text-[#F7F7F8]">{actor}</span> created this task</>;
 
     case "status_changed": {
-      const newStatus = event.newValue as string;
+      const newStatus = event.newValue as TaskStatus;
       const color = statusColors[newStatus] ?? "#9494A0";
       return (
         <>
@@ -125,7 +93,7 @@ function EventDescription({ event }: { event: TaskEventWithActor }) {
     }
 
     case "priority_changed": {
-      const newPriority = event.newValue as string;
+      const newPriority = event.newValue as TaskPriority;
       const pColor = priorityColors[newPriority] ?? "#9494A0";
       return (
         <>
@@ -145,7 +113,7 @@ function EventDescription({ event }: { event: TaskEventWithActor }) {
     }
 
     case "assignee_changed": {
-      const newAssignee = event.newValue as string;
+      const newAssignee = event.newValue as TaskAssignee;
       const aColor = assigneeColors[newAssignee] ?? "#9494A0";
       return (
         <>
@@ -165,7 +133,7 @@ function EventDescription({ event }: { event: TaskEventWithActor }) {
     }
 
     case "reviewer_changed": {
-      const newReviewer = event.newValue as string | null;
+      const newReviewer = event.newValue as TaskAssignee | null;
       if (!newReviewer) {
         return <><span className="font-medium text-[#F7F7F8]">{actor}</span> removed the reviewer</>;
       }

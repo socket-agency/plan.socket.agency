@@ -1,4 +1,5 @@
 import { getCurrentUser } from "@/lib/auth";
+import { getBoardSummary } from "@/lib/board-summary";
 import { redirect } from "next/navigation";
 import { EmberNav } from "./_components/nav";
 
@@ -7,7 +8,10 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const user = await getCurrentUser();
+  const [user, summary] = await Promise.all([
+    getCurrentUser(),
+    getBoardSummary(),
+  ]);
   if (!user) redirect("/login");
 
   return (
@@ -36,7 +40,12 @@ export default async function AppLayout({
         } as React.CSSProperties
       }
     >
-      <EmberNav userName={user.name} userRole={user.role} />
+      <EmberNav
+        userName={user.name}
+        userRole={user.role}
+        progressDone={summary.done}
+        progressTotal={summary.total}
+      />
       <main className="flex-1 overflow-hidden bg-[#0A0A0C]">{children}</main>
     </div>
   );

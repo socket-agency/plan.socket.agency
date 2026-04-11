@@ -8,23 +8,8 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { Task, TaskStatus } from "@/lib/types";
+import { statusLabels, statusColors } from "@/lib/task-config";
 import { EmberTaskCard } from "./task-card";
-
-const statusLabels: Record<TaskStatus, string> = {
-  backlog: "Backlog",
-  todo: "To Do",
-  in_progress: "In Progress",
-  in_review: "In Review",
-  done: "Done",
-};
-
-const statusDotColors: Record<TaskStatus, string> = {
-  backlog: "#55555F",
-  todo: "#9494A0",
-  in_progress: "#3B82F6",
-  in_review: "#F0A868",
-  done: "#34D399",
-};
 
 function SortableTaskCard({
   task,
@@ -77,7 +62,7 @@ export function EmberColumn({
       <div className="mb-3 flex items-center gap-2 rounded-lg bg-[#131316] px-4 py-2.5">
         <span
           className="h-2 w-2 rounded-full"
-          style={{ backgroundColor: statusDotColors[status] }}
+          style={{ backgroundColor: statusColors[status] }}
         />
         <span className="text-sm font-medium text-[#F7F7F8]">
           {statusLabels[status]}

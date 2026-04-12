@@ -2,9 +2,10 @@ import { tool } from "ai";
 import { z } from "zod";
 import { db } from "@/db";
 import { tasks, notDeleted } from "@/db/schema";
-import { eq, asc, and } from "drizzle-orm";
+import { eq, asc, and, sql } from "drizzle-orm";
 import type { UserRole } from "@/db/schema";
 import { logTaskEvent, logTaskChanges, getTaskForComparison } from "@/lib/task-events";
+import { canEditTask, filterClientUpdates } from "@/lib/permissions";
 
 function readTools() {
   return {
@@ -60,7 +61,7 @@ function readTools() {
     getTask: tool({
       description: "Get full details of a specific task by ID",
       inputSchema: z.object({
-        taskId: z.string().describe("The task ID"),
+        taskId: z.string().uuid().describe("The task ID"),
       }),
       execute: async ({ taskId }) => {
         const [task] = await db
@@ -112,7 +113,7 @@ function readTools() {
   };
 }
 
-function writeTools(userId: string) {
+function writeTools(userId: string, role: string) {
   return {
     createTask: tool({
       description: "Create a new task",
@@ -136,8 +137,10 @@ function writeTools(userId: string) {
           .describe("Due date in YYYY-MM-DD format"),
       }),
       execute: async (params) => {
-        const allTasks = await db.select().from(tasks).where(notDeleted);
-        const maxPos = Math.max(0, ...allTasks.map((t) => t.position));
+        const [{ maxPos }] = await db
+          .select({ maxPos: sql<number>`coalesce(max(${tasks.position}), 0)` })
+          .from(tasks)
+          .where(notDeleted);
 
         const [task] = await db
           .insert(tasks)
@@ -168,7 +171,7 @@ function writeTools(userId: string) {
     updateTask: tool({
       description: "Update an existing task's fields",
       inputSchema: z.object({
-        taskId: z.string().describe("The task ID to update"),
+        taskId: z.string().uuid().describe("The task ID to update"),
         title: z.string().optional(),
         description: z.string().optional(),
         status: z
@@ -186,6 +189,10 @@ function writeTools(userId: string) {
         const oldTask = await getTaskForComparison(params.taskId);
         if (!oldTask) return { error: "Task not found" };
 
+        if (!canEditTask({ userId, role }, oldTask)) {
+          return { error: "You do not have permission to edit this task" };
+        }
+
         const setValues: Record<string, unknown> = {};
         if (params.title !== undefined) setValues.title = params.title;
         if (params.description !== undefined)
@@ -196,6 +203,13 @@ function writeTools(userId: string) {
         if (params.reviewer !== undefined) setValues.reviewer = params.reviewer;
         if (params.dueDate !== undefined)
           setValues.dueDate = params.dueDate || null;
+
+        if (role === "client") {
+          const filtered = filterClientUpdates(setValues);
+          if (!filtered) {
+            return { error: "Clients cannot change status or position" };
+          }
+        }
 
         const [task] = await db
           .update(tasks)
@@ -214,9 +228,21 @@ function writeTools(userId: string) {
     deleteTask: tool({
       description: "Delete a task by ID",
       inputSchema: z.object({
-        taskId: z.string().describe("The task ID to delete"),
+        taskId: z.string().uuid().describe("The task ID to delete"),
       }),
       execute: async ({ taskId }) => {
+        const [existing] = await db
+          .select({ id: tasks.id, createdBy: tasks.createdBy, status: tasks.status })
+          .from(tasks)
+          .where(and(eq(tasks.id, taskId), notDeleted))
+          .limit(1);
+
+        if (!existing) return { error: "Task not found" };
+
+        if (!canEditTask({ userId, role }, existing)) {
+          return { error: "You do not have permission to delete this task" };
+        }
+
         const [task] = await db
           .update(tasks)
           .set({ isDeleted: true, deletedAt: new Date() })
@@ -317,8 +343,10 @@ function clientCreateTool(userId: string) {
           .describe("Due date in YYYY-MM-DD format"),
       }),
       execute: async (params) => {
-        const allTasks = await db.select().from(tasks).where(notDeleted);
-        const maxPos = Math.max(0, ...allTasks.map((t) => t.position));
+        const [{ maxPos }] = await db
+          .select({ maxPos: sql<number>`coalesce(max(${tasks.position}), 0)` })
+          .from(tasks)
+          .where(notDeleted);
 
         const [task] = await db
           .insert(tasks)
@@ -352,5 +380,5 @@ export function getTools(role: UserRole, userId: string) {
   if (role === "client") {
     return { ...readTools(), ...clientCreateTool(userId) };
   }
-  return { ...readTools(), ...writeTools(userId) };
+  return { ...readTools(), ...writeTools(userId, role) };
 }

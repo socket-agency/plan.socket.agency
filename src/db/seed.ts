@@ -4,6 +4,11 @@ import { hash } from "@node-rs/argon2";
 import { users, tasks } from "./schema";
 
 async function seed() {
+  if (process.env.NODE_ENV === "production") {
+    console.error("ERROR: Seed script must not run in production.");
+    process.exit(1);
+  }
+
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) {
     console.error("DATABASE_URL is not set");

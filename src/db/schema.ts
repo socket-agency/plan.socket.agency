@@ -48,6 +48,7 @@ export const users = pgTable("users", {
   role: text("role", { enum: userRoles }).notNull().default("client"),
   notificationPrefs: jsonb("notification_prefs").$type<NotificationPrefs>(),
   lastDigestSentAt: timestamp("last_digest_sent_at", { withTimezone: true }),
+  tokenVersion: integer("token_version").default(0).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
@@ -235,3 +236,6 @@ export type TaskEvent = typeof taskEvents.$inferSelect;
 export type NewTaskEvent = typeof taskEvents.$inferInsert;
 export type SentEmail = typeof sentEmails.$inferSelect;
 export type NewSentEmail = typeof sentEmails.$inferInsert;
+
+/** User type without the password hash — safe for passing around. */
+export type SafeUser = Omit<User, "password">;

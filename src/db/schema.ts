@@ -49,6 +49,7 @@ export const users = pgTable("users", {
   notificationPrefs: jsonb("notification_prefs").$type<NotificationPrefs>(),
   lastDigestSentAt: timestamp("last_digest_sent_at", { withTimezone: true }),
   tokenVersion: integer("token_version").default(0).notNull(),
+  isDeleted: boolean("is_deleted").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

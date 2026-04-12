@@ -3,13 +3,13 @@ import { z } from "zod";
 import { db } from "@/db";
 import { users, userRoles } from "@/db/schema";
 import { requireOwner } from "@/lib/api-auth";
-import { hashPassword } from "@/lib/auth";
-import { eq } from "drizzle-orm";
+import { hashPassword, invalidateUserSessions } from "@/lib/auth";
+import { and, eq } from "drizzle-orm";
 
 const createUserSchema = z.object({
   name: z.string().min(1).max(200),
   email: z.string().email().max(500),
-  password: z.string().min(6).max(200),
+  password: z.string().min(8).max(200),
   role: z.enum(userRoles),
 });
 
@@ -26,6 +26,7 @@ export async function GET() {
       createdAt: users.createdAt,
     })
     .from(users)
+    .where(eq(users.isDeleted, false))
     .orderBy(users.createdAt);
 
   return NextResponse.json(allUsers);
@@ -35,7 +36,13 @@ export async function POST(request: Request) {
   const auth = await requireOwner();
   if (auth.error) return auth.error;
 
-  const body = await request.json();
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+
   const parsed = createUserSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
@@ -94,14 +101,17 @@ export async function DELETE(request: Request) {
     );
   }
 
-  const [deleted] = await db
-    .delete(users)
-    .where(eq(users.id, id))
+  const [deactivated] = await db
+    .update(users)
+    .set({ isDeleted: true })
+    .where(and(eq(users.id, id), eq(users.isDeleted, false)))
     .returning({ id: users.id });
 
-  if (!deleted) {
+  if (!deactivated) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
+
+  await invalidateUserSessions(id);
 
   return NextResponse.json({ success: true });
 }

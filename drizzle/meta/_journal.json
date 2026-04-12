@@ -71,6 +71,13 @@
       "when": 1776030156011,
       "tag": "0009_sad_starjammers",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1776032988658,
+      "tag": "0010_rainy_speedball",
+      "breakpoints": true
     }
   ]
 }

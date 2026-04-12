@@ -2,8 +2,8 @@ import { SignJWT, jwtVerify } from "jose";
 import { hash, verify } from "@node-rs/argon2";
 import { cookies } from "next/headers";
 import { db } from "@/db";
-import { users, type User, type UserRole } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { users, type User, type UserRole, type SafeUser } from "@/db/schema";
+import { eq, sql } from "drizzle-orm";
 import { env } from "@/lib/env";
 
 const JWT_SECRET = new TextEncoder().encode(env.JWT_SECRET);
@@ -12,10 +12,16 @@ const COOKIE_NAME = "session";
 export interface SessionPayload {
   userId: string;
   role: UserRole;
+  tokenVersion: number;
 }
 
 export async function hashPassword(password: string): Promise<string> {
-  return hash(password);
+  return hash(password, {
+    memoryCost: 65536, // 64 MiB
+    timeCost: 3,
+    parallelism: 1,
+    algorithm: 2, // Argon2id
+  });
 }
 
 export async function verifyPassword(
@@ -25,10 +31,13 @@ export async function verifyPassword(
   return verify(hashed, password);
 }
 
-export async function createSession(user: User): Promise<string> {
+export async function createSession(
+  user: Pick<User, "id" | "role" | "tokenVersion">
+): Promise<string> {
   const token = await new SignJWT({
     userId: user.id,
     role: user.role,
+    tokenVersion: user.tokenVersion,
   } satisfies SessionPayload)
     .setProtectedHeader({ alg: "HS256" })
     .setExpirationTime("7d")
@@ -53,18 +62,40 @@ export async function verifySession(): Promise<SessionPayload | null> {
 
   try {
     const { payload } = await jwtVerify(token, JWT_SECRET);
-    return payload as unknown as SessionPayload;
+    const session = payload as unknown as SessionPayload;
+
+    // Check tokenVersion against DB to support session revocation
+    const [user] = await db
+      .select({ tokenVersion: users.tokenVersion })
+      .from(users)
+      .where(eq(users.id, session.userId))
+      .limit(1);
+
+    if (!user || user.tokenVersion !== session.tokenVersion) {
+      return null;
+    }
+
+    return session;
   } catch {
     return null;
   }
 }
 
-export async function getCurrentUser(): Promise<User | null> {
+export async function getCurrentUser(): Promise<SafeUser | null> {
   const session = await verifySession();
   if (!session) return null;
 
   const [user] = await db
-    .select()
+    .select({
+      id: users.id,
+      name: users.name,
+      email: users.email,
+      role: users.role,
+      notificationPrefs: users.notificationPrefs,
+      lastDigestSentAt: users.lastDigestSentAt,
+      tokenVersion: users.tokenVersion,
+      createdAt: users.createdAt,
+    })
     .from(users)
     .where(eq(users.id, session.userId))
     .limit(1);
@@ -75,4 +106,11 @@ export async function getCurrentUser(): Promise<User | null> {
 export async function clearSession(): Promise<void> {
   const cookieStore = await cookies();
   cookieStore.delete(COOKIE_NAME);
+}
+
+export async function invalidateUserSessions(userId: string): Promise<void> {
+  await db
+    .update(users)
+    .set({ tokenVersion: sql`token_version + 1` })
+    .where(eq(users.id, userId));
 }

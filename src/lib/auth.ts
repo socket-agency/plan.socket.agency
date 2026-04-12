@@ -95,6 +95,7 @@ export async function getCurrentUser(): Promise<SafeUser | null> {
       lastDigestSentAt: users.lastDigestSentAt,
       tokenVersion: users.tokenVersion,
       createdAt: users.createdAt,
+      isDeleted: users.isDeleted,
     })
     .from(users)
     .where(eq(users.id, session.userId))

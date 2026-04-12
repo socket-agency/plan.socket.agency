@@ -3,7 +3,8 @@ import { z } from "zod";
 import { db } from "@/db";
 import { users, DEFAULT_NOTIFICATION_PREFS } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { verifyPassword, createSession } from "@/lib/auth";
+import { verifyPassword, hashPassword, createSession } from "@/lib/auth";
+import { loginLimiter } from "@/lib/rate-limit";
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -28,6 +29,15 @@ export async function POST(request: Request) {
 
   const { email, password } = parsed.data;
 
+  // Rate limit by email
+  const { success: rateLimitOk } = await loginLimiter.limit(email);
+  if (!rateLimitOk) {
+    return NextResponse.json(
+      { error: "Too many login attempts. Please try again later." },
+      { status: 429 }
+    );
+  }
+
   const [user] = await db
     .select()
     .from(users)
@@ -35,6 +45,8 @@ export async function POST(request: Request) {
     .limit(1);
 
   if (!user) {
+    // Run a dummy hash to equalize response timing with the "wrong password" path
+    await hashPassword("timing-equalization-dummy");
     return NextResponse.json(
       { error: "Invalid credentials" },
       { status: 401 }

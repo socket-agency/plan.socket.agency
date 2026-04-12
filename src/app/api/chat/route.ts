@@ -5,14 +5,17 @@ import {
   convertToModelMessages,
   stepCountIs,
 } from "ai";
+import { z } from "zod";
 import { eq, and, inArray } from "drizzle-orm";
 import { verifySession } from "@/lib/auth";
+import { chatLimiter } from "@/lib/rate-limit";
 import { getTools } from "@/lib/ai/tools";
 import { getSystemPrompt } from "@/lib/ai/system-prompt";
 import { db } from "@/db";
 import { conversations, chatMessages } from "@/db/schema";
 import { generateConversationTitle } from "@/lib/ai/generate-title";
 
+// Pro plan supports up to 60s
 export const maxDuration = 60;
 
 export async function POST(request: Request) {
@@ -21,16 +24,41 @@ export async function POST(request: Request) {
     return new Response("Unauthorized", { status: 401 });
   }
 
+  const { success: rateLimitOk } = await chatLimiter.limit(session.userId);
+  if (!rateLimitOk) {
+    return new Response("Too many requests", { status: 429 });
+  }
+
   let chatId: string;
   let messages: UIMessage[];
   try {
     const body = await request.json();
-    if (!body?.id || typeof body.id !== "string") {
-      return new Response("id is required", { status: 400 });
+    if (!body?.id || typeof body.id !== "string" || !z.string().uuid().safeParse(body.id).success) {
+      return new Response("id must be a valid UUID", { status: 400 });
     }
     if (!Array.isArray(body?.messages) || body.messages.length === 0) {
       return new Response("messages array is required", { status: 400 });
     }
+    if (body.messages.length > 100) {
+      return new Response("Too many messages (max 100)", { status: 400 });
+    }
+    const totalSize = JSON.stringify(body.messages).length;
+    if (totalSize > 200_000) {
+      return new Response("Payload too large", { status: 400 });
+    }
+
+    const messageSchema = z.object({
+      id: z.string().min(1),
+      role: z.enum(["user", "assistant"]),
+      parts: z.array(z.object({ type: z.string() }).passthrough()),
+    });
+
+    for (const m of body.messages) {
+      if (!messageSchema.safeParse(m).success) {
+        return new Response("Invalid message structure", { status: 400 });
+      }
+    }
+
     chatId = body.id;
     messages = body.messages;
   } catch {
@@ -71,7 +99,9 @@ export async function POST(request: Request) {
       : [];
 
     const existingIdSet = new Set(existingMessages.map((m) => m.id));
-    const newMessages = messages.filter((m) => !existingIdSet.has(m.id));
+    const newMessages = messages
+      .filter((m) => !existingIdSet.has(m.id))
+      .filter((m) => m.role === "user" || m.role === "assistant");
 
     if (newMessages.length > 0) {
       await db

@@ -3,12 +3,17 @@ import { z } from "zod";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { requireAuth } from "@/lib/api-auth";
-import { hashPassword, verifyPassword } from "@/lib/auth";
+import {
+  hashPassword,
+  verifyPassword,
+  invalidateUserSessions,
+  createSession,
+} from "@/lib/auth";
 import { eq } from "drizzle-orm";
 
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(1),
-  newPassword: z.string().min(6).max(200),
+  newPassword: z.string().min(8).max(200),
 });
 
 export async function POST(request: Request) {
@@ -55,6 +60,20 @@ export async function POST(request: Request) {
     .update(users)
     .set({ password: hashedPassword })
     .where(eq(users.id, auth.session.userId));
+
+  // Invalidate all existing sessions
+  await invalidateUserSessions(auth.session.userId);
+
+  // Re-issue a session for the current user
+  const [updatedUser] = await db
+    .select({ id: users.id, role: users.role, tokenVersion: users.tokenVersion })
+    .from(users)
+    .where(eq(users.id, auth.session.userId))
+    .limit(1);
+
+  if (updatedUser) {
+    await createSession(updatedUser);
+  }
 
   return NextResponse.json({ success: true });
 }

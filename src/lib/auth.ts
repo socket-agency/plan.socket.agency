@@ -4,11 +4,9 @@ import { cookies } from "next/headers";
 import { db } from "@/db";
 import { users, type User, type UserRole } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { env } from "@/lib/env";
 
-if (!process.env.JWT_SECRET) {
-  throw new Error("JWT_SECRET environment variable is required");
-}
-const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET);
+const JWT_SECRET = new TextEncoder().encode(env.JWT_SECRET);
 const COOKIE_NAME = "session";
 
 export interface SessionPayload {

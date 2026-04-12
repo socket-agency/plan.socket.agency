@@ -35,7 +35,12 @@ export async function PATCH(request: Request) {
   const auth = await requireAuth();
   if (auth.error) return auth.error;
 
-  const body = await request.json();
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
   const parsed = updatePrefsSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(

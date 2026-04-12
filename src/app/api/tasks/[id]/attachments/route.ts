@@ -80,10 +80,17 @@ export async function POST(
   const taskCheck = await validateTaskId(id);
   if (taskCheck.error) return taskCheck.error;
 
-  const body = await request.json();
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+
+  const bodyObj = body as Record<string, unknown>;
 
   // If the body has a `type` field, it's a Vercel Blob handshake request
-  if (body.type) {
+  if (bodyObj.type) {
     const jsonResponse = await handleUpload({
       body: body as HandleUploadBody,
       request,
@@ -106,8 +113,8 @@ export async function POST(
     console.error("[attachment-rejected]", JSON.stringify({
       userId: session.userId,
       taskId: id,
-      filename: body?.filename,
-      contentType: body?.contentType,
+      filename: bodyObj?.filename,
+      contentType: bodyObj?.contentType,
       errors: parsed.error.flatten().fieldErrors,
     }));
     return NextResponse.json(

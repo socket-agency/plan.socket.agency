@@ -36,7 +36,12 @@ export async function POST(request: Request) {
   const { session, error } = await requireOwner();
   if (error) return error;
 
-  const body = await request.json();
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
   const parsed = createKeySchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(

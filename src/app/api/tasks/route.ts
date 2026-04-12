@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/db";
 import { tasks, taskStatuses, taskPriorities, taskAssignees, notDeleted } from "@/db/schema";
-import { asc } from "drizzle-orm";
+import { asc, sql } from "drizzle-orm";
 import { requireAuth } from "@/lib/api-auth";
 import { logTaskEvent } from "@/lib/task-events";
 
@@ -48,14 +48,10 @@ export async function POST(request: Request) {
   const { title, description, priority, assignee, reviewer, dueDate } = parsed.data;
   const status = isClient ? "backlog" as const : parsed.data.status;
 
-  const allTasks = await db
-    .select({ position: tasks.position })
+  const [{ maxPosition }] = await db
+    .select({ maxPosition: sql<number>`coalesce(max(${tasks.position}), 0)` })
     .from(tasks)
     .where(notDeleted);
-  const maxPosition =
-    allTasks.length > 0
-      ? Math.max(...allTasks.map((t) => t.position))
-      : 0;
 
   const [task] = await db
     .insert(tasks)

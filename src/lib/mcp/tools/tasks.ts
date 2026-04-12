@@ -156,11 +156,10 @@ export function registerTaskTools(server: McpServer) {
 
       const effectiveStatus = role === "client" ? "backlog" : status;
 
-      const allTasks = await db
-        .select({ position: tasks.position })
+      const [{ maxPos }] = await db
+        .select({ maxPos: sql<number>`coalesce(max(${tasks.position}), 0)` })
         .from(tasks)
         .where(notDeleted);
-      const maxPos = Math.max(0, ...allTasks.map((t) => t.position));
 
       const [task] = await db
         .insert(tasks)

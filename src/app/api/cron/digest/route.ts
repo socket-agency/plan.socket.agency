@@ -1,18 +1,27 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { users, tasks, taskEvents, DEFAULT_NOTIFICATION_PREFS } from "@/db/schema";
-import type { User, NotificationPrefs } from "@/db/schema";
+import type { UserRole, NotificationPrefs } from "@/db/schema";
 import { eq, ne, and, gt, aliasedTable } from "drizzle-orm";
 import { sendDigestEmail } from "@/lib/notifications";
 import type { DigestEventRow } from "@/lib/notifications";
 
 const actors = aliasedTable(users, "actors");
 
-function resolvePrefs(user: User): NotificationPrefs {
+type DigestUser = {
+  id: string;
+  role: UserRole;
+  email: string;
+  name: string;
+  notificationPrefs: NotificationPrefs | null;
+  lastDigestSentAt: Date | null;
+};
+
+function resolvePrefs(user: DigestUser): NotificationPrefs {
   return user.notificationPrefs ?? DEFAULT_NOTIFICATION_PREFS[user.role];
 }
 
-function isDigestDue(user: User, nowUtcHour: number): boolean {
+function isDigestDue(user: DigestUser, nowUtcHour: number): boolean {
   const prefs = resolvePrefs(user);
   if (prefs.digestIntervalHours == null) return false;
 
@@ -32,16 +41,23 @@ function isDigestDue(user: User, nowUtcHour: number): boolean {
 export async function GET(request: Request) {
   // Verify cron secret (Vercel sets this automatically)
   const authHeader = request.headers.get("authorization");
-  if (
-    process.env.CRON_SECRET &&
-    authHeader !== `Bearer ${process.env.CRON_SECRET}`
-  ) {
+  const cronSecret = process.env.CRON_SECRET;
+  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const nowUtcHour = new Date().getUTCHours();
 
-  const allUsers = await db.select().from(users);
+  const allUsers = await db
+    .select({
+      id: users.id,
+      role: users.role,
+      email: users.email,
+      name: users.name,
+      notificationPrefs: users.notificationPrefs,
+      lastDigestSentAt: users.lastDigestSentAt,
+    })
+    .from(users);
   const dueUsers = allUsers.filter((u) => isDigestDue(u, nowUtcHour));
 
   let sent = 0;

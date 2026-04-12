@@ -227,7 +227,7 @@ export interface DigestEventRow {
 }
 
 export async function sendDigestEmail(
-  recipient: User,
+  recipient: Pick<User, "id" | "email">,
   events: DigestEventRow[],
 ) {
   const taskGroups = new Map<string, DigestTaskGroup>();

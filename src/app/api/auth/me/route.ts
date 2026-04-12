@@ -2,13 +2,14 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/db";
 import { users, DEFAULT_NOTIFICATION_PREFS } from "@/db/schema";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, verifyPassword } from "@/lib/auth";
 import { requireAuth } from "@/lib/api-auth";
 import { eq, and, ne } from "drizzle-orm";
 
 const updateProfileSchema = z.object({
   name: z.string().min(1).max(200).optional(),
   email: z.string().email().max(500).optional(),
+  currentPassword: z.string().optional(),
 });
 
 export async function GET() {
@@ -34,7 +35,13 @@ export async function PATCH(request: Request) {
   const auth = await requireAuth();
   if (auth.error) return auth.error;
 
-  const body = await request.json();
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+
   const parsed = updateProfileSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
@@ -43,12 +50,34 @@ export async function PATCH(request: Request) {
     );
   }
 
-  const { name, email } = parsed.data;
+  const { name, email, currentPassword } = parsed.data;
   if (!name && !email) {
     return NextResponse.json(
       { error: "No fields to update" },
       { status: 400 }
     );
+  }
+
+  // Require current password when changing email
+  if (email) {
+    if (!currentPassword) {
+      return NextResponse.json(
+        { error: "Current password is required to change email" },
+        { status: 400 }
+      );
+    }
+    const [userWithPassword] = await db
+      .select({ password: users.password })
+      .from(users)
+      .where(eq(users.id, auth.session.userId))
+      .limit(1);
+
+    if (!userWithPassword || !(await verifyPassword(userWithPassword.password, currentPassword))) {
+      return NextResponse.json(
+        { error: "Current password is incorrect" },
+        { status: 403 }
+      );
+    }
   }
 
   // Check email uniqueness if changing email

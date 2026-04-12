@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { attachments } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { requireAuth } from "@/lib/api-auth";
 import { logTaskEvent } from "@/lib/task-events";
 import { del } from "@vercel/blob";
@@ -20,7 +20,7 @@ export async function DELETE(
   const [attachment] = await db
     .select()
     .from(attachments)
-    .where(eq(attachments.id, attachmentId))
+    .where(and(eq(attachments.id, attachmentId), eq(attachments.taskId, id)))
     .limit(1);
 
   if (!attachment) {
@@ -42,7 +42,7 @@ export async function DELETE(
   await db.delete(attachments).where(eq(attachments.id, attachmentId));
 
   await logTaskEvent({
-    taskId: id,
+    taskId: attachment.taskId,
     actorId: session.userId,
     type: "attachment_removed",
     metadata: { attachmentId, filename: attachment.filename },

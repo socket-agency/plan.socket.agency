@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { attachments } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { get } from "@vercel/blob";
 import { requireAuth } from "@/lib/api-auth";
 
@@ -14,12 +14,12 @@ export async function GET(
   const { error } = await requireAuth();
   if (error) return error;
 
-  const { attachmentId } = await params;
+  const { id, attachmentId } = await params;
 
   const [attachment] = await db
     .select()
     .from(attachments)
-    .where(eq(attachments.id, attachmentId))
+    .where(and(eq(attachments.id, attachmentId), eq(attachments.taskId, id)))
     .limit(1);
 
   if (!attachment) {
@@ -41,7 +41,8 @@ export async function GET(
   return new Response(result.stream, {
     headers: {
       "Content-Type": attachment.contentType,
-      "Content-Disposition": `inline; filename="${attachment.filename}"`,
+      "Content-Disposition": `inline; filename*=UTF-8''${encodeURIComponent(attachment.filename)}`,
+      "X-Content-Type-Options": "nosniff",
       "Cache-Control": "private, max-age=3600",
     },
   });

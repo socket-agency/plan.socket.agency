@@ -7,6 +7,15 @@ import { requireAuth } from "@/lib/api-auth";
 import { logTaskEvent } from "@/lib/task-events";
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 
+const ALLOWED_CONTENT_TYPES = [
+  "image/png", "image/jpeg", "image/gif", "image/webp",
+  "application/pdf",
+  "text/plain", "text/csv",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+] as const;
+
 async function validateTaskId(id: string) {
   if (!z.string().uuid().safeParse(id).success) {
     return {
@@ -47,11 +56,14 @@ export async function GET(
 }
 
 const registerAttachmentSchema = z.object({
-  url: z.string().url(),
+  url: z.string().url().refine(
+    (u) => u.startsWith("https://") && u.includes(".blob.vercel-storage.com"),
+    "URL must be a Vercel Blob storage URL"
+  ),
   pathname: z.string(),
-  filename: z.string(),
-  contentType: z.string(),
-  size: z.number().int().positive(),
+  filename: z.string().max(255),
+  contentType: z.enum(ALLOWED_CONTENT_TYPES),
+  size: z.number().int().positive().max(10 * 1024 * 1024),
 });
 
 // Two-purpose POST: Vercel Blob client token handshake OR attachment registration.
@@ -77,6 +89,8 @@ export async function POST(
       request,
       onBeforeGenerateToken: async () => ({
         addRandomSuffix: true,
+        allowedContentTypes: [...ALLOWED_CONTENT_TYPES],
+        maximumSizeInBytes: 10 * 1024 * 1024, // 10 MB
       }),
       onUploadCompleted: async () => {
         // No-op: we register attachments via the second POST call instead,
@@ -89,6 +103,13 @@ export async function POST(
   // Otherwise it's a registration request after the upload completed
   const parsed = registerAttachmentSchema.safeParse(body);
   if (!parsed.success) {
+    console.error("[attachment-rejected]", JSON.stringify({
+      userId: session.userId,
+      taskId: id,
+      filename: body?.filename,
+      contentType: body?.contentType,
+      errors: parsed.error.flatten().fieldErrors,
+    }));
     return NextResponse.json(
       { error: "Invalid attachment data", details: parsed.error.flatten() },
       { status: 400 }

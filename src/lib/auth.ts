@@ -3,7 +3,7 @@ import { hash, verify } from "@node-rs/argon2";
 import { cookies } from "next/headers";
 import { db } from "@/db";
 import { users, type User, type UserRole, type SafeUser } from "@/db/schema";
-import { eq, sql } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { env } from "@/lib/env";
 
 const JWT_SECRET = new TextEncoder().encode(env.JWT_SECRET);
@@ -64,11 +64,11 @@ export async function verifySession(): Promise<SessionPayload | null> {
     const { payload } = await jwtVerify(token, JWT_SECRET);
     const session = payload as unknown as SessionPayload;
 
-    // Check tokenVersion against DB to support session revocation
+    // Check tokenVersion against DB and exclude soft-deleted users
     const [user] = await db
       .select({ tokenVersion: users.tokenVersion })
       .from(users)
-      .where(eq(users.id, session.userId))
+      .where(and(eq(users.id, session.userId), eq(users.isDeleted, false)))
       .limit(1);
 
     if (!user || user.tokenVersion !== session.tokenVersion) {

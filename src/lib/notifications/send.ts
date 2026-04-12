@@ -152,6 +152,7 @@ export async function sendNotificationForEvent(params: LogEventParams) {
       and(
         eq(users.role, recipientRole),
         ne(users.id, actorId),
+        eq(users.isDeleted, false),
       ),
     );
 

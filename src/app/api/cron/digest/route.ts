@@ -57,7 +57,8 @@ export async function GET(request: Request) {
       notificationPrefs: users.notificationPrefs,
       lastDigestSentAt: users.lastDigestSentAt,
     })
-    .from(users);
+    .from(users)
+    .where(eq(users.isDeleted, false));
   const dueUsers = allUsers.filter((u) => isDigestDue(u, nowUtcHour));
 
   let sent = 0;
